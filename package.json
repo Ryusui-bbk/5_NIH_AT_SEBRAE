@@ -1,0 +1,21 @@
+{
+  "name": "plantao-noturno-etec-sebrae",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Plantão Noturno: 5 Noites na ETEC Sebrae — Jogo de terror e sobrevivência 3D em primeira pessoa",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.5"
+  }
+}
