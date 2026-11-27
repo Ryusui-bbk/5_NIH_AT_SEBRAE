@@ -277,7 +277,7 @@ export class PhoneSystem {
     }
   }
 
-  update(dt: number, snap: GameSnapshot): void {
+  update(dt: number, snap: GameSnapshot, mouseNDC: { x: number; y: number } = { x: 0, y: 0 }): void {
     this.animClock += dt;
 
     // Sincroniza mudança de tarefa
@@ -288,6 +288,25 @@ export class PhoneSystem {
     }
 
     if (snap.view !== 'P') return;
+
+    // Movimento natural em 1ª pessoa da mão direita segurando o celular + reflexo no vidro
+    const breathX = Math.sin(this.animClock * 1.45) * 1.0;
+    const breathY = Math.cos(this.animClock * 2.05) * 2.4;
+    const tremor =
+      snap.dangerLevel > 0.08
+        ? Math.sin(this.animClock * 26.0) * 1.5 * snap.dangerLevel
+        : 0;
+
+    const rotY = -2.4 - mouseNDC.x * 4.8 + breathX * 0.4 + tremor * 0.45;
+    const rotX = 2.6 + mouseNDC.y * 3.4 + Math.sin(this.animClock * 1.8) * 0.55;
+    const rotZ = -0.8 - mouseNDC.x * 1.0 + tremor * 0.3;
+    const glareShift = 38 + mouseNDC.x * 26 + Math.sin(this.animClock * 1.1) * 6;
+
+    this.container.style.setProperty('--ph-rx', `${rotX.toFixed(2)}deg`);
+    this.container.style.setProperty('--ph-ry', `${rotY.toFixed(2)}deg`);
+    this.container.style.setProperty('--ph-rz', `${rotZ.toFixed(2)}deg`);
+    this.container.style.setProperty('--ph-ty', `${breathY.toFixed(2)}px`);
+    this.container.style.setProperty('--ph-glare', `${glareShift.toFixed(1)}%`);
 
     if (this.camStaticTimer > 0) {
       this.camStaticTimer = Math.max(0, this.camStaticTimer - dt);
@@ -395,18 +414,53 @@ export class PhoneSystem {
     }
   }
 
+  private getPhoneHandRigSrc(): string {
+    const w = window as unknown as { __INLINE_PHONE_RIG__?: string };
+    return w.__INLINE_PHONE_RIG__ || './images/phone-hand-rig.webp';
+  }
+
+  private wrapPhysicalPhoneHardware(screenContentHtml: string, isScreenOff = false): string {
+    const rigSrc = this.getPhoneHandRigSrc();
+    return `
+      <div class="ph-rig-3d ${isScreenOff ? 'ph-screen-off' : ''}">
+        <!-- Painel OLED interativo encaixado com precisão sob o bezel metálico e o polegar direito -->
+        <div class="ph-oled-glass">
+          ${screenContentHtml}
+
+          <!-- Trinca discreta na película + reflexo especular dinâmico no vidro -->
+          <svg class="ph-screen-crack" viewBox="0 0 300 500" aria-hidden="true">
+            <path d="M 252 0 L 269 27 L 300 41 M 269 27 L 284 62 L 300 71 M 269 27 L 246 44"
+              fill="none" stroke="rgba(215, 232, 250, 0.18)" stroke-width="0.9"/>
+          </svg>
+          <div class="ph-glass-glare" aria-hidden="true"></div>
+        </div>
+
+        <!-- Mão direita fotorrealista em 1ª pessoa + chassi metálico do celular (igual à referência!) -->
+        <img
+          class="ph-photo-hand-rig"
+          src="${rigSrc}"
+          alt=""
+          draggable="false"
+          aria-hidden="true"
+        />
+      </div>
+    `;
+  }
+
   renderDOM(snap: GameSnapshot): void {
     if (snap.phoneBattery <= 0) {
-      this.container.innerHTML = `
-        <div class="ph-notch"></div>
-        <div class="ph-statusbar"><span>--:--</span><span>0%</span></div>
+      this.container.innerHTML = this.wrapPhysicalPhoneHardware(
+        `
+        <div class="ph-statusbar"><span>--:--</span><span>SEM CARGA · 0%</span></div>
         <div class="ph-dead">
           <div class="ph-dead-icon">${ICONS.battery}</div>
           <h3>Aparelho Desligado</h3>
-          <p>Guarde o celular [S] para recarregar no Powerbank sobre a carteira.</p>
+          <p>Abaixe o celular [S] para recarregar no Powerbank da carteira.</p>
         </div>
         <div class="ph-homebar"></div>
-      `;
+      `,
+        true
+      );
       return;
     }
 
@@ -435,11 +489,14 @@ export class PhoneSystem {
       bodyHtml = this.renderZapApp(snap);
     }
 
-    this.container.innerHTML = `
-      <div class="ph-notch"></div>
+    this.container.innerHTML = this.wrapPhysicalPhoneHardware(`
       <div class="ph-statusbar">
         <span id="ph-clk-val">${snap.clockText}</span>
-        <span>4G · <b id="ph-bat-val">${Math.ceil(snap.phoneBattery)}%</b></span>
+        <span class="ph-status-right">
+          <i class="ph-sig-bars"><b></b><b></b><b></b><b></b></i>
+          <span>4G</span>
+          <b id="ph-bat-val">${Math.ceil(snap.phoneBattery)}%</b>
+        </span>
       </div>
       <div class="ph-tabs">
         <button class="ph-tab ${this.currentApp === 'resgate' ? 'active' : ''}" data-app="resgate">
@@ -456,7 +513,7 @@ export class PhoneSystem {
         ${bodyHtml}
       </div>
       <div class="ph-homebar"></div>
-    `;
+    `);
 
     this.bindEvents(snap);
   }
@@ -950,54 +1007,49 @@ export class PhoneSystem {
       x.translate(cx, cy);
       x.scale(scale, scale);
 
-      // Silhueta pesada estilo slasher em câmera infravermelha: ombros curvados, paletó aberto, camisa pálida e cabelo desgrenhado
-      x.fillStyle = '#091710';
-      x.strokeStyle = 'rgba(134, 239, 172, 0.55)';
-      x.lineWidth = 1.2;
+      // Silhueta amedrontadora de aparição encapuzada em farrapos no infravermelho (manto rasgado em pontas + capuz fundo)
+      x.fillStyle = '#06110b';
+      x.strokeStyle = 'rgba(134, 239, 172, 0.52)';
+      x.lineWidth = 1.1;
       x.beginPath();
-      x.moveTo(-18, 24);
-      x.lineTo(-16, -11);
-      x.quadraticCurveTo(0, -16, 16, -11);
-      x.lineTo(18, 24);
+      x.moveTo(-22, 26);
+      x.lineTo(-17, 6);
+      x.lineTo(-24, 15);
+      x.lineTo(-19, -12);
+      x.quadraticCurveTo(0, -18, 19, -12);
+      x.lineTo(24, 15);
+      x.lineTo(17, 6);
+      x.lineTo(22, 26);
+      // Pontas rasgadas inferiores da mortalha
+      x.lineTo(14, 18);
+      x.lineTo(9, 28);
+      x.lineTo(2, 19);
+      x.lineTo(-3, 29);
+      x.lineTo(-10, 18);
+      x.lineTo(-15, 27);
       x.closePath();
       x.fill();
       x.stroke();
 
-      // Camisa clara amarrotada e gravata torta no centro do peito
-      x.fillStyle = 'rgba(167, 243, 208, 0.42)';
-      x.fillRect(-5, -12, 10, 26);
-      x.strokeStyle = '#091710';
-      x.lineWidth = 2.4;
+      // Capuz cônico fundo cobrindo a cabeça + abismo negro facial
+      x.fillStyle = '#07140d';
       x.beginPath();
-      x.moveTo(0, -11);
-      x.lineTo(-5, 6);
+      x.moveTo(-13, -10);
+      x.quadraticCurveTo(-12, -31, 0, -37);
+      x.quadraticCurveTo(12, -31, 13, -10);
+      x.closePath();
+      x.fill();
       x.stroke();
 
-      // Cabeleira escura desgrenhada + máscara/rosto pálido superexposto no IR
-      x.fillStyle = '#060f0a';
-      for (let k = 0; k < 9; k++) {
-        const a = Math.PI * 0.8 + (k / 8) * Math.PI * 1.4;
-        x.beginPath();
-        x.arc(Math.cos(a) * 9, -25 + Math.sin(a) * 8, 5, 0, Math.PI * 2);
-        x.fill();
-      }
-      x.fillStyle = 'rgba(187, 247, 208, 0.72)';
+      x.fillStyle = '#020503';
       x.beginPath();
-      x.ellipse(0, -24, 8.5, 10.5, -0.08, 0, Math.PI * 2);
+      x.ellipse(0, -22, 7.5, 9.5, 0, 0, Math.PI * 2);
       x.fill();
 
-      // Órbitas fundas escuras + boca entreaberta sinistra
-      x.fillStyle = '#050d08';
-      x.fillRect(-5.5, -27, 4, 3.2);
-      x.fillRect(1.5, -26.5, 4, 3.2);
-      x.beginPath();
-      x.ellipse(0, -18.5, 3.5, 2.2, 0, 0, Math.PI * 2);
-      x.fill();
-
-      // Reflexo vítreo minúsculo de infravermelho nos olhos
+      // Reflexo vítreo minúsculo de infravermelho dos olhos lá no fundo do capuz!
       x.fillStyle = '#ecfdf5';
-      x.fillRect(-4, -26, 1.3, 1.3);
-      x.fillRect(3, -25.5, 1.3, 1.3);
+      x.fillRect(-4.2, -23.5, 1.6, 1.4);
+      x.fillRect(2.6, -23.5, 1.6, 1.4);
       x.restore();
 
       x.fillStyle = '#86efac';

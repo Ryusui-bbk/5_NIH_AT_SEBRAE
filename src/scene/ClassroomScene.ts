@@ -86,6 +86,8 @@ export class ClassroomScene {
   private jumpscareLight!: THREE.PointLight;
 
   private powerbankBars: THREE.MeshBasicMaterial[] = [];
+  private deskPhoneGroup = new THREE.Group();
+  private deskPhoneScreenMat!: THREE.MeshBasicMaterial;
   private rainLines!: THREE.LineSegments;
   private rainPositions!: Float32Array;
 
@@ -256,6 +258,10 @@ export class ClassroomScene {
   clearJumpscare(): void {
     this.jumpscareTeacher = null;
     this.jumpscareLight.intensity = 0;
+  }
+
+  getMouseNDC(): { x: number; y: number } {
+    return this.mouseNDC;
   }
 
   /**
@@ -1156,6 +1162,37 @@ export class ClassroomScene {
       pbBody.add(led);
     }
 
+    // Smartphone físico 3D repousando sobre a carteira conectado ao Powerbank (some da mesa quando o jogador o ergue na mão!)
+    this.deskPhoneGroup.position.set(0.09, 0.777, 0.56);
+    this.deskPhoneGroup.rotation.y = -0.09;
+    const phoneChassis = new THREE.Mesh(
+      new THREE.BoxGeometry(0.082, 0.009, 0.165),
+      new THREE.MeshStandardMaterial({ color: 0x1a1e24, metalness: 0.78, roughness: 0.26 })
+    );
+    phoneChassis.castShadow = true;
+    this.deskPhoneScreenMat = new THREE.MeshBasicMaterial({ color: 0x162436 });
+    const phoneScreen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.073, 0.15),
+      this.deskPhoneScreenMat
+    );
+    phoneScreen.rotation.x = -Math.PI / 2;
+    phoneScreen.position.y = 0.0048;
+
+    // Cabo USB-C curvado ligando o celular na mesa ao Powerbank
+    const usbCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, -0.001, 0.084),
+      new THREE.Vector3(0.05, -0.002, 0.115),
+      new THREE.Vector3(0.13, 0.002, 0.055),
+      new THREE.Vector3(0.15, 0.005, -0.02),
+    ]);
+    const usbCable = new THREE.Mesh(
+      new THREE.TubeGeometry(usbCurve, 14, 0.0026, 6, false),
+      new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.55 })
+    );
+    this.deskPhoneGroup.add(phoneChassis, phoneScreen, usbCable);
+    this.scene.add(this.deskPhoneGroup);
+    this.registerHotspot(this.deskPhoneGroup, 'desk');
+
     // Folhas de prova espalhadas pelo chão úmido
     const sheetMat = new THREE.MeshStandardMaterial({ color: 0xc9c4b6, roughness: 0.92 });
     [
@@ -1571,7 +1608,7 @@ export class ClassroomScene {
       this.settings.mouseParallax && snap.view !== 'P' ? -this.mouseNDC.y * 0.068 : 0;
 
     const targetYaw = this.getTargetYaw(snap.view) + parallaxX;
-    const targetPitch = (snap.view === 'P' ? -0.34 : -0.015) + parallaxY;
+    const targetPitch = (snap.view === 'P' ? -0.15 : -0.015) + parallaxY;
 
     // Mola criticamente amortecida para peso orgânico de pescoço/filmadora
     const stiffness = 68.0;
@@ -1623,6 +1660,7 @@ export class ClassroomScene {
     this.irLightTarget.position.copy(this.camera.position).addScaledVector(forward, 12);
     this.irLight.intensity = nvActive ? 2.65 : 0;
 
+    this.phoneGlow.position.set(0.28, 1.18, 0.82);
     this.phoneGlow.intensity = snap.view === 'P' && snap.phoneBattery > 0 ? 1.85 : 0;
     this.lightningLight.intensity = this.settings.reducedFlashes
       ? snap.lightningFlash * 1.6
@@ -1660,6 +1698,22 @@ export class ClassroomScene {
       const lit = pbRatio > idx * 0.24;
       mat.color.setHex(lit ? (pbRatio < 0.3 ? 0xc8232c : 0x59b377) : 0x22252a);
     });
+
+    // Quando o celular está guardado (view !== 'P'), ele aparece fisicamente sobre a mesa!
+    this.deskPhoneGroup.visible = snap.view !== 'P';
+    if (this.deskPhoneGroup.visible) {
+      const hasAlert = snap.bellAlert || snap.valdirPopup || snap.unreadMessages > 0;
+      const pulse = 0.5 + 0.5 * Math.sin(this.time * 5.2);
+      this.deskPhoneScreenMat.color.setHex(
+        snap.phoneBattery <= 0
+          ? 0x050608
+          : hasAlert
+            ? pulse > 0.5
+              ? 0x386ea8
+              : 0x1b334d
+            : 0x101c2b
+      );
+    }
 
     // Porta articulada — quando destrancada, fica entreaberta mostrando o corredor escuro do Outlast 2!
     const leftMaxStage = Math.max(
@@ -1731,6 +1785,8 @@ export class ClassroomScene {
           cameraPos: this.camera.position,
           nightVisionOn: nvActive,
           blindedByFlashlight: blinded,
+          doorClosed: snap.doorClosed,
+          blindsClosed: snap.blindsClosed,
         });
         continue;
       }
@@ -1745,6 +1801,8 @@ export class ClassroomScene {
           cameraPos: this.camera.position,
           nightVisionOn: nvActive,
           blindedByFlashlight: flashActive && snap.view === 'L' && pose !== 'hidden',
+          doorClosed: snap.doorClosed,
+          blindsClosed: snap.blindsClosed,
         });
         continue;
       }
@@ -1760,6 +1818,8 @@ export class ClassroomScene {
           time: this.time,
           cameraPos: this.camera.position,
           nightVisionOn: nvActive,
+          doorClosed: snap.doorClosed,
+          blindsClosed: snap.blindsClosed,
         });
         continue;
       }
@@ -1782,6 +1842,8 @@ export class ClassroomScene {
           cameraPos: this.camera.position,
           nightVisionOn: nvActive,
           blindedByFlashlight: blinded,
+          doorClosed: snap.doorClosed,
+          blindsClosed: snap.blindsClosed,
         });
       } else {
         const pose: TeacherPose =
@@ -1801,6 +1863,8 @@ export class ClassroomScene {
           cameraPos: this.camera.position,
           nightVisionOn: nvActive,
           blindedByFlashlight: blinded,
+          doorClosed: snap.doorClosed,
+          blindsClosed: snap.blindsClosed,
         });
       }
     }

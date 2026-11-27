@@ -93,7 +93,7 @@ export class UIManager {
   showMainMenu(tab: MenuTab = 'home'): void {
     this.currentTab = tab;
     this.hudRoot.style.display = 'none';
-    this.phoneEl.style.display = 'none';
+    this.phoneEl.classList.remove('phone-mounted', 'phone-raised');
     this.overlayRoot.style.display = 'flex';
     this.renderCurrentMenuTab();
   }
@@ -672,7 +672,7 @@ export class UIManager {
 
   showEndScreen(payload: GameEndPayload, lastConfig: NightConfig): void {
     this.hudRoot.style.display = 'none';
-    this.phoneEl.style.display = 'none';
+    this.phoneEl.classList.remove('phone-mounted', 'phone-raised');
     this.overlayRoot.style.display = 'flex';
 
     const nextNight =
@@ -986,8 +986,7 @@ export class UIManager {
     }
 
     const showPhone = snap.view === 'P';
-    if ((this.phoneEl.style.display === 'flex') !== showPhone) {
-      this.phoneEl.style.display = showPhone ? 'flex' : 'none';
-    }
+    this.phoneEl.classList.add('phone-mounted');
+    this.phoneEl.classList.toggle('phone-raised', showPhone);
   }
 }
