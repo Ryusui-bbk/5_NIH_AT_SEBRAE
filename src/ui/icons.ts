@@ -4,6 +4,7 @@
  */
 export const ICONS = {
   flashlight: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"><path d="M8 2h8l-2 6v14h-4V8L8 2z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
+  nvg: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"><path d="M2 12s3.8-6 10-6 10 6 10 6-3.8 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/></svg>`,
   lock: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"><rect x="4" y="11" width="16" height="11"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
   unlock: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"><rect x="4" y="11" width="16" height="11"/><path d="M8 11V7a4 4 0 0 1 7.6-1.7"/></svg>`,
   blinds: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"><rect x="3" y="3" width="18" height="4"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="4" y1="19" x2="20" y2="19"/><line x1="18" y1="7" x2="18" y2="21"/></svg>`,

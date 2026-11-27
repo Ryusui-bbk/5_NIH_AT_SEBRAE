@@ -1,14 +1,12 @@
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { TeacherConfig } from '../types';
 import {
-  createGrittySkinPBR,
-  createStainedShirtPBR,
-  createWornSuitPBR,
-  heightToNormalTexture,
-  PBRTextureSet,
-  renderSlasherFaceBuffers,
-  scalarToRoughnessTexture,
-} from './ProceduralTextures';
+  LoadedOutlastRigAssets,
+  loadOutlastRigAssets,
+  MocapClipName,
+} from './GlbAssetLoader';
+import { createGrittySkinPBR } from './ProceduralTextures';
 
 export type TeacherPose =
   | 'hidden'
@@ -21,799 +19,818 @@ export type TeacherPose =
   | 'boardApparition'
   | 'jumpscare';
 
-// Cache compartilhado para tecidos base comuns entre rigs
-let sharedShirtPBR: PBRTextureSet | null = null;
-let sharedPantsPBR: PBRTextureSet | null = null;
-
-function getSharedShirtPBR(): PBRTextureSet {
-  if (!sharedShirtPBR) sharedShirtPBR = createStainedShirtPBR(17);
-  return sharedShirtPBR;
+export interface PoseUpdateOptions {
+  dt: number;
+  pose: TeacherPose;
+  enterAnim: number;
+  time: number;
+  cameraPos: THREE.Vector3;
+  nightVisionOn?: boolean;
+  blindedByFlashlight?: boolean;
 }
 
-function getSharedPantsPBR(): PBRTextureSet {
-  if (!sharedPantsPBR) sharedPantsPBR = createWornSuitPBR(0x141519, 88);
-  return sharedPantsPBR;
-}
+let sharedSkinNormal: THREE.DataTexture | null = null;
+let sharedSkinRough: THREE.DataTexture | null = null;
 
-/**
- * Deforma vértices de uma malha com dobras orgânicas de tecido amassado / assimetria corporal
- * para eliminar qualquer aparência de "cilindro liso de boneco".
- */
-function crumpleGeometry(
-  geo: THREE.BufferGeometry,
-  ampX: number,
-  ampY: number,
-  ampZ: number,
-  freq: number,
-  seed: number
-): THREE.BufferGeometry {
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const n1 = Math.sin(y * freq + x * (freq * 0.7) + seed) * Math.cos(z * freq - seed * 0.5);
-    const n2 = Math.sin(y * (freq * 2.1) - z * (freq * 1.4) + seed * 1.7) * 0.5;
-    const w = n1 + n2;
-    pos.setXYZ(i, x + w * ampX, y + n1 * ampY, z + w * ampZ);
+function ensureSharedSkinMaps(): { normalMap: THREE.DataTexture; roughnessMap: THREE.DataTexture } {
+  if (!sharedSkinNormal || !sharedSkinRough) {
+    const pbr = createGrittySkinPBR(0x9a8f84, 73);
+    sharedSkinNormal = pbr.normalMap;
+    sharedSkinRough = pbr.roughnessMap;
   }
-  geo.computeVertexNormals();
-  return geo;
+  return { normalMap: sharedSkinNormal, roughnessMap: sharedSkinRough };
 }
+
+const _tmpVec = new THREE.Vector3();
+const _tmpQuat = new THREE.Quaternion();
+const _tmpEuler = new THREE.Euler();
 
 export class TeacherRig {
   readonly root = new THREE.Group();
-  readonly headGroup = new THREE.Group();
-  readonly leftArm = new THREE.Group();
-  readonly rightArm = new THREE.Group();
-  readonly tiePivot = new THREE.Group();
-  readonly eyeGlowLeft: THREE.Mesh;
-  readonly eyeGlowRight: THREE.Mesh;
 
-  private faceTexture: THREE.CanvasTexture;
-  private faceMat: THREE.MeshStandardMaterial;
+  private config: TeacherConfig;
+  private displayName: string;
+  private customPhotoImg: HTMLImageElement | null = null;
+
+  private modelRoot: THREE.Object3D | null = null;
+  private mixer: THREE.AnimationMixer | null = null;
+  private actions: Partial<Record<MocapClipName, THREE.AnimationAction>> = {};
+  private activeActionName: MocapClipName | null = null;
+
+  // Ossos principais para IK aditivo (olhar, inclinação na fresta da porta, recuo à lanterna)
+  private bones: {
+    hips?: THREE.Object3D;
+    spine?: THREE.Object3D;
+    spine1?: THREE.Object3D;
+    spine2?: THREE.Object3D;
+    neck?: THREE.Object3D;
+    head?: THREE.Object3D;
+    leftArm?: THREE.Object3D;
+    leftForeArm?: THREE.Object3D;
+    rightArm?: THREE.Object3D;
+    rightForeArm?: THREE.Object3D;
+    rightHand?: THREE.Object3D;
+    leftEye?: THREE.Object3D;
+    rightEye?: THREE.Object3D;
+  } = {};
+
+  private morphMeshes: THREE.Mesh[] = [];
+  private eyeMats: THREE.MeshStandardMaterial[] = [];
+  private tapetumMeshes: THREE.Mesh[] = [];
+  private skinMat: THREE.MeshStandardMaterial | null = null;
+  private baseSkinImage: HTMLImageElement | HTMLCanvasElement | ImageBitmap | null = null;
+
   private badgeCanvas: HTMLCanvasElement;
   private badgeTexture: THREE.CanvasTexture;
-  private config: TeacherConfig;
-  private customPhotoImg: HTMLImageElement | null = null;
-  private displayName: string;
+
+  // Estado contínuo de locomoção no espaço 3D (zero teleporte!)
+  private currentPose: TeacherPose = 'hidden';
+  private lastActiveSide: 'L' | 'R' | 'C' = 'L';
+  private isRetreating = false;
+  private worldPos = new THREE.Vector3(-18.5, 0, -0.55);
+  private targetPos = new THREE.Vector3(-18.5, 0, -0.55);
+  private currentYaw = Math.PI / 2;
+  private peekWeight = 0;
+  private flinchWeight = 0;
+  private mouthOpenVal = 0;
+  private propLight: THREE.PointLight | null = null;
 
   constructor(config: TeacherConfig, displayName?: string, photoDataUrl?: string) {
     this.config = config;
     this.displayName = displayName || config.defaultName;
-
-    const seedMap: Record<string, number> = {
-      marcos: 1,
-      helena: 2,
-      ricardo: 3,
-      valdir: 4,
-      celia: 5,
-    };
-    const seed = seedMap[config.id] ?? 1;
-
-    // Inicializa texturas faciais PBR (Albedo + Normal + Roughness)
-    const dummyCanvas = document.createElement('canvas');
-    dummyCanvas.width = 256;
-    dummyCanvas.height = 256;
-    this.faceTexture = new THREE.CanvasTexture(dummyCanvas);
-    this.faceTexture.colorSpace = THREE.SRGBColorSpace;
-
-    this.faceMat = new THREE.MeshStandardMaterial({
-      map: this.faceTexture,
-      roughness: 0.75,
-      metalness: 0.02,
-      transparent: true,
-      normalScale: new THREE.Vector2(1.45, 1.45),
-    });
 
     this.badgeCanvas = document.createElement('canvas');
     this.badgeCanvas.width = 128;
     this.badgeCanvas.height = 160;
     this.badgeTexture = new THREE.CanvasTexture(this.badgeCanvas);
     this.badgeTexture.colorSpace = THREE.SRGBColorSpace;
+    this.renderBadge();
 
-    // Materiais PBR surrados estilo filme 16mm / Slasher 1974
-    const skinPBR = createGrittySkinPBR(config.skinColor, seed * 13);
-    const suitDarkHex = new THREE.Color(config.suitColor).multiplyScalar(0.62).getHex();
-    const suitPBR = createWornSuitPBR(suitDarkHex, seed * 29);
-    const shirtPBR = getSharedShirtPBR();
-    const pantsPBR = getSharedPantsPBR();
-
-    const skinMat = new THREE.MeshStandardMaterial({
-      map: skinPBR.map,
-      normalMap: skinPBR.normalMap,
-      roughnessMap: skinPBR.roughnessMap,
-      normalScale: new THREE.Vector2(1.1, 1.1),
-      roughness: 0.72,
-    });
-
-    const suitMat = new THREE.MeshStandardMaterial({
-      map: suitPBR.map,
-      normalMap: suitPBR.normalMap,
-      roughnessMap: suitPBR.roughnessMap,
-      normalScale: new THREE.Vector2(1.35, 1.35),
-      roughness: 0.92,
-    });
-
-    const shirtMat = new THREE.MeshStandardMaterial({
-      map: shirtPBR.map,
-      normalMap: shirtPBR.normalMap,
-      roughnessMap: shirtPBR.roughnessMap,
-      normalScale: new THREE.Vector2(1.4, 1.4),
-      roughness: 0.88,
-    });
-
-    const pantsMat = new THREE.MeshStandardMaterial({
-      map: pantsPBR.map,
-      normalMap: pantsPBR.normalMap,
-      roughnessMap: pantsPBR.roughnessMap,
-      normalScale: new THREE.Vector2(1.1, 1.1),
-      roughness: 0.9,
-    });
-
-    const shoeMat = new THREE.MeshStandardMaterial({
-      color: 0x12100f,
-      normalMap: pantsPBR.normalMap,
-      roughness: 0.42,
-      metalness: 0.08,
-    });
-
-    const tieColor = new THREE.Color(config.secondaryColor).multiplyScalar(0.45).getHex();
-    const tieMat = new THREE.MeshStandardMaterial({
-      color: tieColor,
-      normalMap: suitPBR.normalMap,
-      normalScale: new THREE.Vector2(0.9, 0.9),
-      roughness: 0.84,
-    });
-
-    const hairColorDark = new THREE.Color(config.hairColor).multiplyScalar(0.55).getHex();
-    const hairMat = new THREE.MeshStandardMaterial({
-      color: hairColorDark,
-      normalMap: suitPBR.normalMap,
-      roughness: 0.94,
-    });
-
-    // Proporção física: Marcos e Valdir mais largos/corpulentos (estilo silhueta Leatherface!)
-    const bulkX = config.id === 'marcos' ? 1.14 : config.id === 'valdir' ? 1.09 : 1.0;
-    const bulkZ = config.id === 'marcos' ? 1.12 : 1.02;
-
-    // ==================== PERNAS AMASSADAS E SAPATOS SURRADOS ====================
-    [-1, 1].forEach((side) => {
-      const legGeo = crumpleGeometry(
-        new THREE.CylinderGeometry(0.086 * bulkX, 0.068, 0.86, 14, 8),
-        0.008,
-        0.003,
-        0.01,
-        14,
-        seed + side
-      );
-      const leg = new THREE.Mesh(legGeo, pantsMat);
-      leg.position.set(0.112 * side * bulkX, 0.44, 0);
-      leg.castShadow = true;
-      this.root.add(leg);
-
-      const shoeGeo = crumpleGeometry(
-        new THREE.BoxGeometry(0.13, 0.085, 0.26, 4, 3, 5),
-        0.004,
-        0.003,
-        0.005,
-        18,
-        seed * 3 + side
-      );
-      const shoe = new THREE.Mesh(shoeGeo, shoeMat);
-      shoe.position.set(0.112 * side * bulkX, 0.042, 0.05);
-      shoe.castShadow = true;
-      this.root.add(shoe);
-    });
-
-    // ==================== TRONCO INTERNO: CAMISA SOCIAL BRANCA ENCARDIDA E AMARROTADA ====================
-    const innerTorsoGeo = crumpleGeometry(
-      new THREE.CylinderGeometry(0.205 * bulkX, 0.185 * bulkX, 0.64, 20, 10),
-      0.012,
-      0.006,
-      0.014,
-      16,
-      seed + 11
-    );
-    const innerTorso = new THREE.Mesh(innerTorsoGeo, shirtMat);
-    innerTorso.position.set(0, 1.15, 0.01);
-    innerTorso.scale.set(1.04, 1, 0.72 * bulkZ);
-    innerTorso.castShadow = true;
-    this.root.add(innerTorso);
-
-    // Gola da camisa aberta e torta (igual à referência!)
-    [-1, 1].forEach((side) => {
-      const collar = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.065, 0.02), shirtMat);
-      collar.position.set(side * 0.062, 1.455, 0.115 * bulkZ);
-      collar.rotation.set(0.28, side * -0.35, side * -0.48);
-      this.root.add(collar);
-    });
-
-    // Botões escuros desalinhados na camisa
-    for (let b = 0; b < 4; b++) {
-      const btn = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.007, 0.007, 0.008, 8),
-        shoeMat
-      );
-      btn.rotation.x = Math.PI / 2;
-      btn.position.set((b % 2 === 0 ? 1 : -1) * 0.003, 1.34 - b * 0.09, 0.146 * bulkZ);
-      this.root.add(btn);
-    }
-
-    // ==================== PALETÓ ESCURO SURRADO ABERTO NAS FRENTES ====================
-    // Costas e laterais do paletó pesado
-    const coatBackGeo = crumpleGeometry(
-      new THREE.CylinderGeometry(
-        0.228 * bulkX,
-        0.215 * bulkX,
-        0.69,
-        20,
-        8,
-        false,
-        Math.PI * 0.22,
-        Math.PI * 1.56
-      ),
-      0.014,
-      0.008,
-      0.014,
-      13,
-      seed + 23
-    );
-    const coatBack = new THREE.Mesh(coatBackGeo, suitMat);
-    coatBack.position.set(0, 1.14, 0);
-    coatBack.scale.set(1.06, 1, 0.78 * bulkZ);
-    coatBack.castShadow = true;
-    this.root.add(coatBack);
-
-    // Duas abas frontais abertas do paletó + lapelas tortas enquadrando a camisa manchada!
-    [-1, 1].forEach((side) => {
-      const panelGeo = crumpleGeometry(
-        new THREE.BoxGeometry(0.125 * bulkX, 0.67, 0.045, 4, 8, 2),
-        0.008,
-        0.006,
-        0.01,
-        15,
-        seed + side * 7
-      );
-      const panel = new THREE.Mesh(panelGeo, suitMat);
-      panel.position.set(side * 0.145 * bulkX, 1.135, 0.128 * bulkZ);
-      panel.rotation.y = side * -0.24;
-      panel.rotation.z = side * 0.04;
-      panel.castShadow = true;
-      this.root.add(panel);
-
-      // Lapela chanfrada
-      const lapel = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.26, 0.018), suitMat);
-      lapel.position.set(side * 0.095 * bulkX, 1.31, 0.154 * bulkZ);
-      lapel.rotation.z = side * 0.26;
-      lapel.rotation.y = side * -0.18;
-      this.root.add(lapel);
-    });
-
-    // Ombros largos levemente curvados/corcundas ("hunched slasher shoulders")
-    const shoulderGeo = crumpleGeometry(
-      new THREE.BoxGeometry(0.51 * bulkX, 0.125, 0.25 * bulkZ, 6, 3, 4),
-      0.009,
-      0.008,
-      0.009,
-      12,
-      seed + 41
-    );
-    const shoulders = new THREE.Mesh(shoulderGeo, suitMat);
-    shoulders.position.set(0, 1.43, -0.01);
-    shoulders.rotation.x = 0.08;
-    shoulders.castShadow = true;
-    this.root.add(shoulders);
-
-    // ==================== GRAVATA TORTA ESVOAÇANTE (ASSINATURA VISUAL DA REFERÊNCIA!) ====================
-    this.tiePivot.position.set(0, 1.41, 0.148 * bulkZ);
-    const knot = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.04, 0.025), tieMat);
-    const tieUpper = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.17, 0.014), tieMat);
-    tieUpper.position.set(-0.022, -0.09, 0.006);
-    tieUpper.rotation.z = -0.24;
-    const tieLower = new THREE.Mesh(new THREE.BoxGeometry(0.056, 0.19, 0.012), tieMat);
-    tieLower.position.set(-0.072, -0.24, 0.018);
-    tieLower.rotation.z = -0.42;
-    tieLower.rotation.x = -0.12;
-    this.tiePivot.add(knot, tieUpper, tieLower);
-    this.root.add(this.tiePivot);
-
-    // Crachá ETEC gasto e torto preso no bolso/lapela do paletó
-    const badgeMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.072, 0.092),
-      new THREE.MeshStandardMaterial({ map: this.badgeTexture, roughness: 0.65 })
-    );
-    badgeMesh.position.set(0.135 * bulkX, 1.24, 0.164 * bulkZ);
-    badgeMesh.rotation.z = -0.11;
-    badgeMesh.rotation.y = -0.18;
-    this.root.add(badgeMesh);
-
-    // ==================== BRAÇOS ENRUGADOS + MÃOS ESCULPIDAS COM DEDOS ====================
-    this.leftArm.position.set(-0.27 * bulkX, 1.41, 0);
-    this.buildArm(this.leftArm, suitMat, shirtMat, skinMat, -1, seed);
-    this.root.add(this.leftArm);
-
-    this.rightArm.position.set(0.27 * bulkX, 1.41, 0);
-    const rHand = this.buildArm(this.rightArm, suitMat, shirtMat, skinMat, 1, seed);
-    this.attachProp(rHand);
-    this.root.add(this.rightArm);
-
-    // ==================== PESCOÇO, CABEÇA ESCULPIDA, ROSTO 3D & CABELO SELVAGEM ====================
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.068, 0.13, 12), skinMat);
-    neck.position.set(0, 1.515, 0.01);
-    neck.rotation.x = 0.08;
-    this.root.add(neck);
-
-    this.headGroup.position.set(0, 1.665, 0.02);
-
-    // Crânio deformado organicamente
-    const craniumGeo = crumpleGeometry(
-      new THREE.SphereGeometry(0.126, 26, 22),
-      0.005,
-      0.005,
-      0.005,
-      18,
-      seed + 59
-    );
-    const cranium = new THREE.Mesh(craniumGeo, skinMat);
-    cranium.scale.set(0.93, 1.15, 0.99);
-    cranium.castShadow = true;
-    this.headGroup.add(cranium);
-
-    // Malha facial 3D de alta subdivisão com relevo anatômico real (arco superciliar, nariz, órbitas fundas e boca)
-    const faceGeo = new THREE.PlaneGeometry(0.188, 0.214, 24, 24);
-    const posAttr = faceGeo.attributes.position;
-    for (let i = 0; i < posAttr.count; i++) {
-      const px = posAttr.getX(i);
-      const py = posAttr.getY(i);
-      const nx = px / 0.094; // -1 .. 1
-      const ny = py / 0.107; // -1 (queixo) .. +1 (testa)
-
-      // Curvatura base envolvendo o crânio
-      let z = -0.034 * nx * nx - 0.018 * ny * ny;
-      // Arco superciliar saltado
-      z += Math.exp(-((ny - 0.32) ** 2) / 0.04) * (1 - nx * nx * 0.6) * 0.011;
-      // Cana e ponta do nariz 3D real!
-      if (ny > -0.25 && ny < 0.36) {
-        z += Math.exp(-(nx * nx) / 0.045) * 0.019 * (1 - Math.abs(ny - 0.02));
-      }
-      // Cavidades oculares fundas!
-      const eyeL = Math.exp(-(((nx + 0.34) / 0.22) ** 2 + ((ny - 0.17) / 0.16) ** 2));
-      const eyeR = Math.exp(-(((nx - 0.34) / 0.22) ** 2 + ((ny - 0.17) / 0.16) ** 2));
-      z -= (eyeL + eyeR) * 0.014;
-      // Cavidade escura da boca entreaberta
-      const mouthHollow = Math.exp(-((nx / 0.32) ** 2 + ((ny + 0.51) / 0.14) ** 2));
-      z -= mouthHollow * 0.012;
-
-      posAttr.setZ(i, z);
-    }
-    faceGeo.computeVertexNormals();
-
-    const faceMesh = new THREE.Mesh(faceGeo, this.faceMat);
-    faceMesh.position.set(0, -0.006, 0.124);
-    this.headGroup.add(faceMesh);
-
-    // Orelhas pálidas esculpidas
-    [-1, 1].forEach((side) => {
-      const ear = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 8), skinMat);
-      ear.scale.set(0.42, 1.35, 0.82);
-      ear.position.set(0.114 * side, -0.004, -0.005);
-      this.headGroup.add(ear);
-    });
-
-    // CABELO DESGRENHADO E SELVAGEM (Mechas irregulares saltando em silhueta — inspirado na foto!)
-    this.buildWildSlasherHair(hairMat, seed);
-
-    // Óculos tortos e trincados (Prof. Ricardo / Coord. Valdir)
-    if (config.hasGlasses) {
-      const glassesGroup = new THREE.Group();
-      const frameMat = new THREE.MeshStandardMaterial({
-        color: 0x181716,
-        metalness: 0.6,
-        roughness: 0.38,
-      });
-      const lensMat = new THREE.MeshStandardMaterial({
-        color: 0xc9d4cc,
-        transparent: true,
-        opacity: 0.24,
-        roughness: 0.12,
-      });
-      [-1, 1].forEach((side) => {
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.0035, 8, 20), frameMat);
-        rim.position.set(0.042 * side, 0.015, 0.129);
-        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.029, 16), lensMat);
-        lens.position.set(0.042 * side, 0.015, 0.13);
-        glassesGroup.add(rim, lens);
-      });
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.004, 0.005), frameMat);
-      bridge.position.set(0, 0.018, 0.129);
-      glassesGroup.add(bridge);
-      // Entorta levemente os óculos para aspecto perturbador!
-      glassesGroup.rotation.z = config.id === 'ricardo' ? -0.09 : 0.04;
-      this.headGroup.add(glassesGroup);
-    }
-
-    // Reflexo ocular minúsculo e frio lá no fundo das órbitas escuras (sem parecer "olho neon de robô")
-    const eyeGlowMat = new THREE.MeshBasicMaterial({ color: 0xd8cbb8 });
-    this.eyeGlowLeft = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 6, 6), eyeGlowMat);
-    this.eyeGlowRight = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 6, 6), eyeGlowMat);
-    this.eyeGlowLeft.position.set(-0.035, 0.013, 0.123);
-    this.eyeGlowRight.position.set(0.035, 0.013, 0.123);
-    this.headGroup.add(this.eyeGlowLeft, this.eyeGlowRight);
-
-    this.root.add(this.headGroup);
     this.root.visible = false;
 
-    this.refreshAppearance(this.displayName, photoDataUrl);
+    if (photoDataUrl) {
+      this.loadCustomPhoto(photoDataUrl);
+    }
+
+    loadOutlastRigAssets()
+      .then((assets) => {
+        this.setupSkinnedRig(assets);
+      })
+      .catch((err) => {
+        console.error('Erro carregando rig 3D Outlast:', err);
+      });
   }
 
-  private buildArm(
-    armGroup: THREE.Group,
-    suitMat: THREE.Material,
-    shirtMat: THREE.Material,
-    skinMat: THREE.Material,
-    side: number,
-    seed: number
-  ): THREE.Group {
-    const sleeveGeo = crumpleGeometry(
-      new THREE.CylinderGeometry(0.064, 0.05, 0.54, 14, 7),
-      0.007,
-      0.004,
-      0.008,
-      18,
-      seed + side * 19
+  private setupSkinnedRig(assets: LoadedOutlastRigAssets): void {
+    const cloned = SkeletonUtils.clone(assets.baseScene);
+    this.modelRoot = cloned;
+
+    // Escala anatômica individual por docente
+    if (this.config.id === 'marcos') {
+      cloned.scale.set(1.09, 1.03, 1.08);
+    } else if (this.config.id === 'valdir') {
+      cloned.scale.set(0.95, 1.07, 0.95);
+    } else if (this.config.id === 'helena') {
+      cloned.scale.set(0.94, 1.01, 0.93);
+    } else if (this.config.id === 'celia') {
+      cloned.scale.set(0.96, 0.97, 0.96);
+    } else {
+      cloned.scale.set(0.98, 1.0, 0.97);
+    }
+
+    const { normalMap: skinNormal, roughnessMap: skinRough } = ensureSharedSkinMaps();
+    const isFemale = Boolean(this.config.isFemale);
+
+    // Tonalidade sombria individual de traje e pele estilo Outlast
+    const suitTint = new THREE.Color(this.config.suitColor).lerp(new THREE.Color(0x1b2026), 0.45);
+    suitTint.multiplyScalar(1.35);
+
+    const skinTintMap: Record<string, number> = {
+      marcos: 0xd8cfc6,
+      helena: 0xd5d2ce,
+      ricardo: 0xc9ced1,
+      valdir: 0xb5bec2, // Palidez cadavérica acinzentada
+      celia: 0xd0c8c0,
+    };
+    const skinTint = new THREE.Color(skinTintMap[this.config.id] ?? 0xd2cbc4);
+
+    cloned.traverse((obj) => {
+      if (obj.name === 'Hips') this.bones.hips = obj;
+      else if (obj.name === 'Spine') this.bones.spine = obj;
+      else if (obj.name === 'Spine1') this.bones.spine1 = obj;
+      else if (obj.name === 'Spine2') this.bones.spine2 = obj;
+      else if (obj.name === 'Neck') this.bones.neck = obj;
+      else if (obj.name === 'Head') this.bones.head = obj;
+      else if (obj.name === 'LeftArm') this.bones.leftArm = obj;
+      else if (obj.name === 'LeftForeArm') this.bones.leftForeArm = obj;
+      else if (obj.name === 'RightArm') this.bones.rightArm = obj;
+      else if (obj.name === 'RightForeArm') this.bones.rightForeArm = obj;
+      else if (obj.name === 'RightHand') this.bones.rightHand = obj;
+      else if (obj.name === 'LeftEye') this.bones.leftEye = obj;
+      else if (obj.name === 'RightEye') this.bones.rightEye = obj;
+
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      // Evita frustum culling prematuro em SkinnedMesh durante animações agachadas
+      mesh.frustumCulled = false;
+
+      if (mesh.morphTargetDictionary && mesh.morphTargetInfluences) {
+        this.morphMeshes.push(mesh);
+      }
+
+      if (mesh.name === 'Wolf3D_Beard') {
+        mesh.visible = !isFemale && this.config.id !== 'valdir';
+      }
+
+      const oldMat = mesh.material as THREE.MeshStandardMaterial;
+      if (!oldMat) return;
+      const mat = oldMat.clone();
+
+      if (oldMat.name === 'Wolf3D_Skin' || oldMat.name === 'Wolf3D_Body') {
+        mat.color.copy(skinTint);
+        mat.normalMap = skinNormal;
+        mat.roughnessMap = skinRough;
+        mat.normalScale = new THREE.Vector2(0.55, 0.55);
+        mat.roughness = 0.66; // Suor frio sutil na pele sob a lanterna
+        mat.metalness = 0.02;
+        if (oldMat.name === 'Wolf3D_Skin') {
+          this.skinMat = mat;
+          if (mat.map?.image) {
+            this.baseSkinImage = mat.map.image as HTMLImageElement;
+          }
+        }
+      } else if (oldMat.name === 'Wolf3D_Outfit_Top') {
+        mat.color.copy(suitTint);
+        mat.roughness = 0.88;
+        mat.normalScale = new THREE.Vector2(1.35, 1.35);
+      } else if (oldMat.name === 'Wolf3D_Outfit_Bottom') {
+        mat.color.setHex(0x888d94);
+        mat.roughness = 0.9;
+      } else if (oldMat.name === 'Wolf3D_Eye') {
+        mat.roughness = 0.08;
+        mat.metalness = 0.05;
+        mat.emissive = new THREE.Color(0x98b89e);
+        mat.emissiveIntensity = 0.16;
+        this.eyeMats.push(mat);
+      } else if (oldMat.name === 'Wolf3D_Teeth') {
+        mat.roughness = 0.35;
+      }
+
+      mesh.material = mat;
+    });
+
+    // Anexa detalhes de terror exclusivos diretamente nos ossos do esqueleto!
+    this.attachHeadDetails();
+    this.attachBadgeToChest();
+    this.attachSignatureProp();
+
+    if (this.customPhotoImg) {
+      this.applyCustomPhotoToFace();
+    }
+
+    this.root.add(cloned);
+
+    // Inicializa AnimationMixer com todos os clipes reais de captura de movimento
+    this.mixer = new THREE.AnimationMixer(cloned);
+    (Object.keys(assets.clips) as MocapClipName[]).forEach((clipKey) => {
+      const action = this.mixer!.clipAction(assets.clips[clipKey]);
+      action.enabled = true;
+      this.actions[clipKey] = action;
+    });
+
+    this.fadeToAction('idle', 0.01);
+  }
+
+  private attachHeadDetails(): void {
+    const head = this.bones.head;
+    if (!head) return;
+
+    // Reflexo ocular puntiforme estilo filmadora IR Outlast (Tapetum lucidum)
+    const tapetumGeo = new THREE.SphereGeometry(0.0085, 8, 8);
+    const tapetumMat = new THREE.MeshBasicMaterial({
+      color: 0xd8ffea,
+      transparent: true,
+      opacity: 0.35,
+    });
+    [-0.031, 0.031].forEach((ex) => {
+      const orb = new THREE.Mesh(tapetumGeo, tapetumMat.clone());
+      orb.position.set(ex, 0.089, 0.098);
+      head.add(orb);
+      this.tapetumMeshes.push(orb);
+    });
+
+    // Cabelos desgrenhados / úmidos esculpidos sobre o crânio para diferenciar cada silhueta
+    const hairColor = new THREE.Color(this.config.hairColor).multiplyScalar(0.5);
+    const hairMat = new THREE.MeshStandardMaterial({
+      color: hairColor,
+      roughness: 0.78,
+      metalness: 0.05,
+    });
+
+    const scalpCap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.104, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.56),
+      hairMat
     );
-    const sleeve = new THREE.Mesh(sleeveGeo, suitMat);
-    sleeve.position.set(0, -0.26, 0);
-    sleeve.castShadow = true;
+    scalpCap.position.set(0, 0.105, -0.012);
+    scalpCap.scale.set(0.98, 1.04, 1.08);
+    head.add(scalpCap);
 
-    // Punho branco sujo da camisa saindo da manga do paletó
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.046, 0.045, 12), shirtMat);
-    cuff.position.set(0, -0.535, 0);
-
-    // Mão ossuda articulada com palma + dedos curvados
-    const handGroup = new THREE.Group();
-    handGroup.position.set(0, -0.58, 0.01);
-
-    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.068, 0.03), skinMat);
-    handGroup.add(palm);
-
-    for (let f = 0; f < 4; f++) {
-      const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.005, 0.052, 6), skinMat);
-      finger.position.set(-0.018 + f * 0.012, -0.048, 0.008);
-      finger.rotation.x = -0.35;
-      handGroup.add(finger);
+    if (this.config.id === 'helena') {
+      // Mechas longas escorridas de chuva caindo sobre o rosto (estilo Marta / Outlast 2)
+      for (let i = 0; i < 9; i++) {
+        const angle = -1.25 + (i / 8) * 2.5;
+        const isFrontLock = Math.abs(angle) > 0.88;
+        const len = isFrontLock ? 0.24 : 0.29;
+        const strand = new THREE.Mesh(
+          new THREE.ConeGeometry(0.022, len, 6),
+          hairMat
+        );
+        strand.rotation.x = Math.PI;
+        strand.rotation.z = Math.sin(angle) * 0.14;
+        strand.position.set(
+          Math.sin(angle) * 0.095,
+          0.04 - len * 0.32,
+          -Math.cos(angle) * 0.088 + (isFrontLock ? 0.085 : 0)
+        );
+        head.add(strand);
+      }
+    } else if (this.config.id === 'celia') {
+      // Coque severo grisalho desalinhado + mechas soltas
+      const bun = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), hairMat);
+      bun.position.set(0, 0.125, -0.118);
+      head.add(bun);
+    } else if (this.config.id !== 'valdir') {
+      // Mechas irregulares desgrenhadas na testa/têmporas
+      for (let i = 0; i < 6; i++) {
+        const strand = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.085, 5), hairMat);
+        strand.rotation.x = Math.PI * 0.85;
+        strand.position.set(-0.065 + i * 0.026, 0.145, 0.068 - Math.abs(i - 2.5) * 0.012);
+        head.add(strand);
+      }
     }
-    const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.006, 0.042, 6), skinMat);
-    thumb.position.set(-side * 0.028, -0.018, 0.014);
-    thumb.rotation.z = side * 0.55;
-    thumb.rotation.x = -0.25;
-    handGroup.add(thumb);
 
-    armGroup.add(sleeve, cuff, handGroup);
-    return handGroup;
+    // Óculos metálicos tortos / lente trincada
+    if (this.config.hasGlasses) {
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x2a2824,
+        metalness: 0.78,
+        roughness: 0.32,
+      });
+      const lensMat = new THREE.MeshStandardMaterial({
+        color: 0x9ec0cc,
+        transparent: true,
+        opacity: 0.32,
+        roughness: 0.1,
+        metalness: 0.2,
+      });
+      const glassesGrp = new THREE.Group();
+      glassesGrp.position.set(0, 0.088, 0.096);
+      // Levemente torto para visual perturbador estilo Outlast
+      glassesGrp.rotation.z = this.config.id === 'marcos' ? -0.09 : 0.04;
+
+      [-0.033, 0.033].forEach((gx) => {
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(0.021, 0.0024, 6, 16), frameMat);
+        rim.position.x = gx;
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.019, 12), lensMat);
+        lens.position.set(gx, 0, 0.001);
+        glassesGrp.add(rim, lens);
+      });
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.003, 0.003), frameMat);
+      glassesGrp.add(bridge);
+      head.add(glassesGrp);
+    }
   }
 
-  private buildWildSlasherHair(hairMat: THREE.Material, seed: number): void {
-    // Base volumosa irregular
-    const capGeo = crumpleGeometry(
-      new THREE.SphereGeometry(0.134, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.66),
-      0.012,
-      0.01,
-      0.012,
-      14,
-      seed + 77
+  private attachBadgeToChest(): void {
+    const chest = this.bones.spine2;
+    if (!chest) return;
+
+    const badge = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.068, 0.088),
+      new THREE.MeshStandardMaterial({
+        map: this.badgeTexture,
+        roughness: 0.45,
+        side: THREE.DoubleSide,
+      })
     );
-    const hairCap = new THREE.Mesh(capGeo, hairMat);
-    hairCap.scale.set(1.02, 1.16, 1.06);
-    hairCap.rotation.x = -0.26;
-    hairCap.position.set(0, 0.014, -0.012);
-    this.headGroup.add(hairCap);
-
-    // Tufos e mechas desgrenhadas saltando para fora (recriando a cabeleira bagunçada da foto!)
-    const tuftCount = this.config.isFemale ? 26 : 22;
-    for (let i = 0; i < tuftCount; i++) {
-      const t = i / tuftCount;
-      // Evita cobrir o centro dos olhos, concentrando nas têmporas, topo e nuca
-      const azimuth = Math.PI * 0.24 + t * Math.PI * 1.52;
-      const elev = -0.15 + ((i * 37 + seed * 11) % 10) * 0.095;
-
-      const tuftLen = this.config.isFemale ? 0.13 + (i % 3) * 0.035 : 0.085 + (i % 4) * 0.022;
-      const tuft = new THREE.Mesh(
-        new THREE.ConeGeometry(0.026 + (i % 3) * 0.006, tuftLen, 6),
-        hairMat
-      );
-
-      const rx = Math.sin(azimuth) * 0.118;
-      const rz = Math.cos(azimuth) * 0.118 - 0.012;
-      const ry = 0.02 + Math.sin(elev) * 0.095;
-
-      tuft.position.set(rx, ry, rz);
-      tuft.rotation.set(
-        (Math.cos(azimuth) - 0.2) * 0.85,
-        azimuth * 0.3,
-        -Math.sin(azimuth) * (this.config.isFemale ? 1.15 : 1.35)
-      );
-      this.headGroup.add(tuft);
-    }
-
-    if (this.config.isFemale) {
-      // Coque desmanchado na nuca com mechas soltas escorridas de chuva
-      const messyBun = new THREE.Mesh(
-        crumpleGeometry(new THREE.SphereGeometry(0.072, 12, 10), 0.01, 0.01, 0.01, 16, seed),
-        hairMat
-      );
-      messyBun.position.set(0.012, 0.018, -0.148);
-      this.headGroup.add(messyBun);
-    }
+    badge.position.set(-0.075, 0.04, 0.145);
+    badge.rotation.set(-0.08, -0.14, 0.06);
+    chest.add(badge);
   }
 
-  private attachProp(hand: THREE.Object3D): void {
+  private attachSignatureProp(): void {
+    const hand = this.bones.rightHand;
+    if (!hand) return;
+
+    const propGroup = new THREE.Group();
+    // Na hierarquia Mixamo/RPM, +Y aponta ao longo dos dedos; posicionamos na palma fechada
+    propGroup.position.set(-0.02, 0.095, 0.025);
+
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x4b3522, roughness: 0.78 });
+    const metalMat = new THREE.MeshStandardMaterial({
+      color: 0x565c63,
+      metalness: 0.75,
+      roughness: 0.35,
+    });
+
     switch (this.config.propType) {
       case 'ruler': {
-        // Régua pesada de oficina/lousa em madeira lascada com cantoneira metálica enferrujada!
-        const grp = new THREE.Group();
-        const woodBar = new THREE.Mesh(
-          new THREE.BoxGeometry(0.048, 0.78, 0.016),
-          new THREE.MeshStandardMaterial({ color: 0x6e4e2a, roughness: 0.82 })
-        );
-        const steelEdge = new THREE.Mesh(
-          new THREE.BoxGeometry(0.012, 0.78, 0.018),
-          new THREE.MeshStandardMaterial({ color: 0x6a6e73, metalness: 0.78, roughness: 0.36 })
-        );
-        steelEdge.position.x = 0.024;
-        const crossHead = new THREE.Mesh(
-          new THREE.BoxGeometry(0.24, 0.045, 0.02),
-          new THREE.MeshStandardMaterial({ color: 0x4d351b, roughness: 0.85 })
-        );
-        crossHead.position.y = -0.37;
-        grp.add(woodBar, steelEdge, crossHead);
-        grp.position.set(-0.04, -0.24, 0.16);
-        grp.rotation.set(0.78, 0.15, 0.32);
-        hand.add(grp);
+        // Régua pesada de madeira manchada de giz e sangue seco (Prof. Marcos)
+        const ruler = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.76, 0.012), woodMat);
+        ruler.position.set(0, 0.26, 0);
+        ruler.rotation.z = 0.18;
+        ruler.castShadow = true;
+        propGroup.add(ruler);
         break;
       }
       case 'clipboard': {
-        const board = new THREE.Mesh(
-          new THREE.BoxGeometry(0.23, 0.32, 0.016),
-          new THREE.MeshStandardMaterial({ color: 0x3d2718, roughness: 0.85 })
-        );
-        const clip = new THREE.Mesh(
-          new THREE.BoxGeometry(0.09, 0.035, 0.026),
-          new THREE.MeshStandardMaterial({ color: 0x5c534a, metalness: 0.7, roughness: 0.45 })
-        );
-        clip.position.set(0, 0.145, 0.01);
+        // Prancheta de ferro oxidado com provas riscadas de vermelho (Profa. Helena)
+        const board = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.30, 0.012), woodMat);
         const paper = new THREE.Mesh(
           new THREE.PlaneGeometry(0.19, 0.25),
           new THREE.MeshStandardMaterial({ color: 0xcfc7b4, roughness: 0.92 })
         );
-        paper.position.z = 0.01;
-        board.add(clip, paper);
-        board.position.set(-0.04, -0.05, 0.12);
-        board.rotation.x = -0.5;
-        hand.add(board);
+        paper.position.z = 0.008;
+        const clip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 0.022), metalMat);
+        clip.position.set(0, 0.14, 0.01);
+        propGroup.add(board, paper, clip);
         break;
       }
       case 'tablet': {
-        const tab = new THREE.Mesh(
-          new THREE.BoxGeometry(0.2, 0.27, 0.016),
-          new THREE.MeshStandardMaterial({
-            color: 0x111417,
-            emissive: 0x1d4729,
-            emissiveIntensity: 0.65,
-            roughness: 0.28,
-          })
+        // Tablet CFTV trincado iluminando o corredor escuro de azul frio (Prof. Ricardo)
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.25, 0.014), metalMat);
+        const screen = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.165, 0.22),
+          new THREE.MeshBasicMaterial({ color: 0x6ec6ff })
         );
-        tab.position.set(-0.03, -0.04, 0.11);
-        tab.rotation.x = -0.45;
-        hand.add(tab);
+        screen.position.z = 0.009;
+        this.propLight = new THREE.PointLight(0x52b0ff, 0.55, 2.6);
+        this.propLight.position.set(0, 0.05, 0.12);
+        propGroup.add(body, screen, this.propLight);
         break;
       }
       case 'ledger': {
+        // Diário de Classe encadernado em couro carmesim emanando aura rubra (Coord. Valdir)
         const book = new THREE.Mesh(
-          new THREE.BoxGeometry(0.25, 0.34, 0.055),
+          new THREE.BoxGeometry(0.22, 0.29, 0.045),
           new THREE.MeshStandardMaterial({
-            color: 0x36090e,
-            emissive: 0x1c0205,
-            roughness: 0.68,
+            color: 0x3b080e,
+            emissive: 0x240205,
+            roughness: 0.65,
           })
         );
-        const pages = new THREE.Mesh(
-          new THREE.BoxGeometry(0.235, 0.32, 0.044),
-          new THREE.MeshStandardMaterial({ color: 0xbdb297, roughness: 0.92 })
-        );
-        pages.position.x = 0.008;
-        book.add(pages);
-        book.position.set(-0.05, -0.04, 0.12);
-        book.rotation.x = -0.4;
-        hand.add(book);
+        this.propLight = new THREE.PointLight(0xd41c2c, 0.65, 2.8);
+        this.propLight.position.set(0, 0.05, 0.14);
+        propGroup.add(book, this.propLight);
         break;
       }
       case 'bell': {
-        const bellGroup = new THREE.Group();
-        const handle = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.014, 0.018, 0.11, 8),
-          new THREE.MeshStandardMaterial({ color: 0x2b1b10, roughness: 0.8 })
+        // Sino escolar pesado de latão oxidado (Inspetora Célia)
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.11, 8), woodMat);
+        const cup = new THREE.Mesh(
+          new THREE.ConeGeometry(0.075, 0.12, 14),
+          new THREE.MeshStandardMaterial({
+            color: 0x8d7234,
+            metalness: 0.72,
+            roughness: 0.36,
+          })
         );
-        const cone = new THREE.Mesh(
-          new THREE.ConeGeometry(0.072, 0.13, 16),
-          new THREE.MeshStandardMaterial({ color: 0x8c6d2c, metalness: 0.72, roughness: 0.44 })
-        );
-        cone.position.y = -0.09;
-        bellGroup.add(handle, cone);
-        bellGroup.position.set(0, -0.04, 0.06);
-        bellGroup.rotation.x = 0.4;
-        hand.add(bellGroup);
+        cup.position.y = 0.11;
+        propGroup.add(handle, cup);
         break;
       }
     }
+
+    hand.add(propGroup);
+  }
+
+  private loadCustomPhoto(dataUrl: string): void {
+    const img = new Image();
+    img.onload = () => {
+      this.customPhotoImg = img;
+      this.renderBadge();
+      this.applyCustomPhotoToFace();
+    };
+    img.src = dataUrl;
+  }
+
+  private applyCustomPhotoToFace(): void {
+    if (!this.skinMat || !this.baseSkinImage || !this.customPhotoImg) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(this.baseSkinImage as CanvasImageSource, 0, 0, 512, 512);
+
+    // Mescla a foto customizada de forma orgânica e dessaturada na região facial do UV (0.50, 0.38)
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(256, 198, 86, 98, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha = 0.72;
+    ctx.filter = 'grayscale(72%) contrast(135%) brightness(82%)';
+    ctx.drawImage(this.customPhotoImg, 168, 96, 176, 204);
+    ctx.restore();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.flipY = false; // glTF usa flipY = false!
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.skinMat.map = tex;
+    this.skinMat.needsUpdate = true;
+  }
+
+  private renderBadge(): void {
+    const ctx = this.badgeCanvas.getContext('2d')!;
+    ctx.fillStyle = '#cfc9bc';
+    ctx.fillRect(0, 0, 128, 160);
+    ctx.fillStyle = '#5e1116';
+    ctx.fillRect(0, 0, 128, 28);
+    ctx.fillStyle = '#e8e2d5';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ETEC SEBRAE', 64, 19);
+
+    ctx.fillStyle = '#222428';
+    if (this.customPhotoImg) {
+      ctx.drawImage(this.customPhotoImg, 28, 36, 72, 72);
+    } else {
+      ctx.fillRect(28, 36, 72, 72);
+    }
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText(this.displayName.slice(0, 13).toUpperCase(), 64, 128);
+    ctx.fillStyle = '#581216';
+    ctx.font = '9px monospace';
+    ctx.fillText('DOCENTE NOTURNO', 64, 145);
+    this.badgeTexture.needsUpdate = true;
   }
 
   refreshAppearance(displayName: string, photoDataUrl?: string): void {
-    this.displayName = displayName;
-    this.drawBadge();
+    this.displayName = displayName || this.config.defaultName;
     if (photoDataUrl) {
-      const img = new Image();
-      img.onload = () => {
-        this.customPhotoImg = img;
-        this.rebuildFacePBR();
-      };
-      img.onerror = () => {
-        this.customPhotoImg = null;
-        this.rebuildFacePBR();
-      };
-      img.src = photoDataUrl;
+      this.loadCustomPhoto(photoDataUrl);
     } else {
       this.customPhotoImg = null;
-      this.rebuildFacePBR();
+      this.renderBadge();
     }
   }
 
-  private drawBadge(): void {
-    const x = this.badgeCanvas.getContext('2d')!;
-    x.fillStyle = '#d8d3c5';
-    x.fillRect(0, 0, 128, 160);
-    x.fillStyle = '#7d141d';
-    x.fillRect(0, 0, 128, 34);
-    x.fillStyle = '#e8e2d5';
-    x.font = 'bold 15px Georgia';
-    x.textAlign = 'center';
-    x.fillText('ETEC SEBRAE', 64, 23);
+  private fadeToAction(name: MocapClipName, duration = 0.32, timeScale = 1.0): void {
+    if (!this.mixer) return;
+    const next = this.actions[name];
+    if (!next) return;
 
-    x.fillStyle = '#1b1b1d';
-    x.fillRect(28, 46, 72, 64);
-    x.fillStyle = '#1f1c19';
-    x.font = 'bold 13px monospace';
-    x.fillText(this.displayName.slice(0, 14), 64, 134);
-    this.badgeTexture.needsUpdate = true;
+    next.timeScale = timeScale;
+
+    if (this.activeActionName === name) return;
+
+    const prev = this.activeActionName ? this.actions[this.activeActionName] : null;
+    next.reset().play();
+    if (prev && prev !== next) {
+      prev.crossFadeTo(next, duration, false);
+    }
+    this.activeActionName = name;
   }
 
-  private rebuildFacePBR(): void {
-    const { canvas, heightField, roughField } = renderSlasherFaceBuffers(
-      this.config,
-      this.customPhotoImg
-    );
-
-    const size = canvas.width;
-    const faceNormal = heightToNormalTexture(
-      heightField,
-      size,
-      size,
-      2.8,
-      THREE.ClampToEdgeWrapping,
-      THREE.ClampToEdgeWrapping
-    );
-    const faceRough = scalarToRoughnessTexture(
-      roughField,
-      size,
-      size,
-      THREE.ClampToEdgeWrapping,
-      THREE.ClampToEdgeWrapping
-    );
-
-    if (this.faceMat.normalMap) this.faceMat.normalMap.dispose();
-    if (this.faceMat.roughnessMap) this.faceMat.roughnessMap.dispose();
-
-    this.faceTexture.image = canvas;
-    this.faceTexture.needsUpdate = true;
-    this.faceMat.normalMap = faceNormal;
-    this.faceMat.roughnessMap = faceRough;
-    this.faceMat.needsUpdate = true;
-
-    // Atualiza miniatura granulada no crachá
-    const bx = this.badgeCanvas.getContext('2d')!;
-    bx.drawImage(canvas, 28, 46, 72, 64);
-    this.badgeTexture.needsUpdate = true;
+  private setJawMorph(openAmount: number, smileAmount = 0): void {
+    for (const mesh of this.morphMeshes) {
+      const dict = mesh.morphTargetDictionary;
+      const infl = mesh.morphTargetInfluences;
+      if (!dict || !infl) continue;
+      if (dict.mouthOpen !== undefined) {
+        infl[dict.mouthOpen] = THREE.MathUtils.clamp(openAmount, 0, 1);
+      }
+      if (dict.mouthSmile !== undefined) {
+        infl[dict.mouthSmile] = THREE.MathUtils.clamp(smileAmount, 0, 1);
+      }
+    }
   }
 
-  setPose(pose: TeacherPose, anim01: number, time: number, cameraPos: THREE.Vector3): void {
-    if (pose === 'hidden') {
-      this.root.visible = false;
+  /**
+   * Atualiza locomoção contínua no espaço 3D, crossfade de captura de movimento (mocap)
+   * e camada procedural aditiva nos ossos (olhar, espiar pela porta, recuo à lanterna).
+   */
+  updatePose(opts: PoseUpdateOptions): void {
+    const {
+      dt,
+      pose,
+      time,
+      cameraPos,
+      nightVisionOn = false,
+      blindedByFlashlight = false,
+    } = opts;
+
+    // 1. Olhos retrorrefletivos IR estilo filmadora Outlast!
+    const eyeEmissive = nightVisionOn ? 3.8 : 0.18;
+    const tapetumOpacity = nightVisionOn ? 0.96 : 0.28;
+    for (const mat of this.eyeMats) {
+      mat.emissive.setHex(nightVisionOn ? 0x8effc2 : 0x98b09c);
+      mat.emissiveIntensity = eyeEmissive;
+    }
+    for (const orb of this.tapetumMeshes) {
+      const bMat = orb.material as THREE.MeshBasicMaterial;
+      bMat.color.setHex(nightVisionOn ? 0xdfffe9 : 0xcbd8cc);
+      bMat.opacity = tapetumOpacity;
+      orb.scale.setScalar(nightVisionOn ? 1.35 : 0.85);
+    }
+
+    // 2. Jumpscare em close visceral!
+    if (pose === 'jumpscare') {
+      this.currentPose = 'jumpscare';
+      this.isRetreating = false;
+      this.root.visible = true;
+      this.worldPos.set(0, -0.14, 0.24);
+      this.root.position.copy(this.worldPos);
+      this.root.rotation.set(0, 0, 0);
+
+      this.fadeToAction('sprint', 0.08, 1.45);
+      this.mixer?.update(dt);
+      this.setJawMorph(0.95, 0.25);
+
+      // Braços avançando contra a lente da filmadora
+      if (this.bones.leftArm && this.bones.rightArm) {
+        _tmpEuler.set(-0.85, 0.25, -0.2);
+        this.bones.leftArm.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+        _tmpEuler.set(-0.85, -0.25, 0.2);
+        this.bones.rightArm.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      }
+      if (this.bones.head) {
+        _tmpEuler.set(Math.sin(time * 38) * 0.08, Math.cos(time * 31) * 0.1, Math.sin(time * 27) * 0.12);
+        this.bones.head.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      }
       return;
     }
 
-    this.root.visible = true;
-    this.root.scale.setScalar(1);
-    this.leftArm.rotation.set(-0.18, 0, 0.08);
-    this.rightArm.rotation.set(-0.48, -0.14, -0.08);
-    // Cabeça levemente inclinada e pesada como em slashers clássicos
-    this.headGroup.rotation.set(
-      0.06 + Math.sin(time * 1.4) * 0.025,
-      0,
-      -0.09 + Math.sin(time * 1.7) * 0.045
-    );
-    // Gravata torta balançando sutilmente
-    this.tiePivot.rotation.z = Math.sin(time * 2.3) * 0.06;
-    this.eyeGlowLeft.visible = !this.customPhotoImg;
-    this.eyeGlowRight.visible = !this.customPhotoImg;
+    // 3. Determina transições contínuas de posição no mundo (sem teleporte!)
+    if (pose === 'hidden') {
+      if (this.currentPose !== 'hidden' && !this.isRetreating) {
+        // Foi repelido! Em vez de sumir seco, recua agachado pelas sombras até desaparecer no nevoeiro!
+        if (this.lastActiveSide === 'L') {
+          this.isRetreating = true;
+          this.targetPos.set(-18.2, 0, -0.55);
+        } else if (this.lastActiveSide === 'R') {
+          this.isRetreating = true;
+          this.targetPos.set(13.2, -0.05, -0.5);
+        } else {
+          this.root.visible = false;
+          this.currentPose = 'hidden';
+          return;
+        }
+      }
 
-    const breathe = Math.sin(time * 2.2) * 0.014;
+      if (!this.isRetreating) {
+        this.root.visible = false;
+        return;
+      }
+    } else {
+      const wasCompletelyHidden = this.currentPose === 'hidden' && !this.isRetreating;
+      this.isRetreating = false;
+      this.root.visible = true;
 
-    switch (pose) {
-      case 'corridorFar': {
-        this.root.position.set(-7.35, breathe, -1.55);
-        this.root.lookAt(-2, 0, 0.4);
-        this.headGroup.rotation.z = -0.16;
-        break;
-      }
-      case 'doorPeek': {
-        this.root.position.set(-5.38, breathe, -0.45);
-        this.root.lookAt(cameraPos.x, 0, cameraPos.z);
-        this.root.rotation.z = -0.09;
-        this.headGroup.rotation.z = -0.18;
-        break;
-      }
-      case 'doorBreach': {
-        // Avanço pesado inclinadaço para frente estilo corrida do Leatherface!
-        const e = anim01 * anim01 * (3 - 2 * anim01);
-        const stride = Math.sin(time * 7.5) * 0.028;
-        this.root.position.set(-5.2 + 1.95 * e, breathe + Math.abs(stride), -0.35 + 0.25 * e);
-        this.root.lookAt(cameraPos.x, 0, cameraPos.z);
-        this.root.rotation.x += 0.08 * e;
-        this.leftArm.rotation.set(-0.55, 0.22, 0.14);
-        this.rightArm.rotation.set(-0.88 - Math.sin(time * 3.6) * 0.1, -0.22, -0.12);
-        this.tiePivot.rotation.z = -0.22 + Math.sin(time * 6) * 0.12;
-        break;
-      }
-      case 'courtyardFar': {
-        this.root.position.set(7.65, breathe, -1.2);
-        this.root.lookAt(0, 0, 0.5);
-        break;
-      }
-      case 'windowPeek': {
-        this.root.position.set(5.48, breathe, -0.35);
-        this.root.lookAt(cameraPos.x, 0, cameraPos.z);
-        this.headGroup.rotation.z = 0.14;
-        break;
-      }
-      case 'windowBreach': {
-        const e = anim01 * anim01 * (3 - 2 * anim01);
-        this.root.position.set(5.45 - 0.82 * e, breathe, -0.32);
-        this.root.lookAt(cameraPos.x, 0, cameraPos.z);
-        this.leftArm.rotation.x = -0.95 * e;
-        this.rightArm.rotation.x = -1.02 * e;
-        this.tiePivot.rotation.z = -0.18;
-        break;
-      }
-      case 'boardApparition': {
-        this.root.position.set(-1.15, breathe, -3.65);
-        this.root.lookAt(cameraPos.x, 0, cameraPos.z);
-        this.rightArm.rotation.x = -0.85;
-        break;
-      }
-      case 'jumpscare': {
-        this.root.position.set(0, 1.46 - 1.64, 0.22);
-        this.root.rotation.set(0.08, 0, Math.sin(time * 42) * 0.09);
-        this.leftArm.rotation.set(-1.38, 0.28, 0.35);
-        this.rightArm.rotation.set(-1.42, -0.28, -0.35);
-        this.tiePivot.rotation.z = -0.45 + Math.sin(time * 48) * 0.25;
-        this.headGroup.rotation.set(
-          Math.sin(time * 36) * 0.1,
-          Math.cos(time * 28) * 0.09,
-          Math.sin(time * 50) * 0.15
+      if (pose === 'corridorFar' || pose === 'doorPeek' || pose === 'doorBreach') {
+        if (wasCompletelyHidden || this.lastActiveSide !== 'L') {
+          // Surge vindo do fundo escuro do corredor (ou já na posição se menu)
+          this.worldPos.set(pose === 'corridorFar' ? -15.6 : -8.8, 0, -0.58);
+          this.currentYaw = Math.PI / 2;
+        }
+        this.lastActiveSide = 'L';
+
+        if (pose === 'corridorFar') {
+          // Ronda inquieta sob a luz fluorescente piscante ao fundo do corredor Outlast!
+          this.targetPos.set(
+            -12.4 + Math.sin(time * 0.55) * 0.85,
+            0,
+            -0.48 + Math.cos(time * 0.42) * 0.38
+          );
+        } else if (pose === 'doorPeek') {
+          // Encosta na quina do batente da porta espiando para dentro da Sala 04
+          this.targetPos.set(-5.32, 0, -0.88);
+        } else {
+          // Invadiu a sala de aula!
+          this.targetPos.set(-2.95, 0, -0.28);
+        }
+      } else if (pose === 'courtyardFar' || pose === 'windowPeek' || pose === 'windowBreach') {
+        if (wasCompletelyHidden || this.lastActiveSide !== 'R') {
+          this.worldPos.set(pose === 'courtyardFar' ? 12.6 : 8.4, -0.05, -0.55);
+          this.currentYaw = -Math.PI / 2;
+        }
+        this.lastActiveSide = 'R';
+
+        if (pose === 'courtyardFar') {
+          this.targetPos.set(
+            8.75 + Math.sin(time * 0.48) * 0.45,
+            -0.05,
+            -0.95 + Math.cos(time * 0.37) * 0.45
+          );
+        } else if (pose === 'windowPeek') {
+          this.targetPos.set(5.42, -0.05, -0.35);
+        } else {
+          this.targetPos.set(3.35, 0, -0.25);
+        }
+      } else if (pose === 'boardApparition') {
+        this.lastActiveSide = 'C';
+        if (wasCompletelyHidden) {
+          this.worldPos.set(-0.45, 0, -4.15);
+          this.currentYaw = 0;
+        }
+        this.targetPos.set(
+          -0.25 + Math.sin(time * 0.7) * 0.18,
+          0,
+          -3.95
         );
-        break;
+      }
+
+      this.currentPose = pose;
+    }
+
+    // 4. Move suavemente worldPos -> targetPos com velocidade realista casada ao mocap
+    _tmpVec.subVectors(this.targetPos, this.worldPos);
+    const flatDist = Math.hypot(_tmpVec.x, _tmpVec.z);
+
+    const moveSpeed = this.isRetreating
+      ? 2.65
+      : pose === 'doorBreach' || pose === 'windowBreach'
+        ? 2.85
+        : pose === 'corridorFar' || pose === 'courtyardFar'
+          ? 0.95
+          : 2.35;
+
+    let currentSpeed = 0;
+    if (flatDist > 0.03) {
+      const step = Math.min(flatDist, moveSpeed * dt);
+      currentSpeed = step / Math.max(0.0001, dt);
+      this.worldPos.x += (_tmpVec.x / flatDist) * step;
+      this.worldPos.z += (_tmpVec.z / flatDist) * step;
+      this.worldPos.y += (this.targetPos.y - this.worldPos.y) * Math.min(1, dt * 8);
+    } else {
+      this.worldPos.copy(this.targetPos);
+      if (this.isRetreating) {
+        this.isRetreating = false;
+        this.currentPose = 'hidden';
+        this.root.visible = false;
+        return;
       }
     }
+
+    this.root.position.copy(this.worldPos);
+
+    // Orientação corporal suave: ao caminhar olha na direção do avanço; parado/recuando encara o jogador!
+    let desiredYaw: number;
+    if (!this.isRetreating && flatDist > 0.45) {
+      desiredYaw = Math.atan2(_tmpVec.x, _tmpVec.z);
+    } else {
+      desiredYaw = Math.atan2(cameraPos.x - this.worldPos.x, cameraPos.z - this.worldPos.z);
+    }
+
+    // Interpolação angular curta sem salto em +-PI
+    let diffYaw = desiredYaw - this.currentYaw;
+    while (diffYaw > Math.PI) diffYaw -= Math.PI * 2;
+    while (diffYaw < -Math.PI) diffYaw += Math.PI * 2;
+    this.currentYaw += diffYaw * Math.min(1, dt * 7.5);
+    this.root.rotation.set(0, this.currentYaw, 0);
+
+    // 5. Seleção fluida de clipe de captura de movimento (Idle / Walk / Stalk / Retreat / Sprint)
+    const walkClip: MocapClipName = this.config.isFemale ? 'walkFem' : 'walk';
+    if (this.isRetreating) {
+      this.fadeToAction('retreat', 0.25, 1.18);
+    } else if (currentSpeed > 2.45) {
+      this.fadeToAction(this.config.id === 'celia' ? walkClip : 'stalk', 0.24, 1.32);
+    } else if (currentSpeed > 0.35) {
+      const useStalk = this.config.id === 'marcos' || this.config.id === 'ricardo';
+      this.fadeToAction(useStalk ? 'stalk' : walkClip, 0.32, Math.max(0.72, currentSpeed * 0.62));
+    } else {
+      this.fadeToAction('idle', 0.42, this.config.id === 'valdir' ? 0.78 : 0.92);
+    }
+
+    this.mixer?.update(dt);
+
+    // 6. Camada IK Aditiva pós-mocap: inclinação na fresta da porta, olho-no-olho e reação à lanterna!
+    const isPeekingDoor = !this.isRetreating && pose === 'doorPeek' && flatDist < 0.38;
+    const targetPeek = isPeekingDoor ? 1 : 0;
+    this.peekWeight += (targetPeek - this.peekWeight) * Math.min(1, dt * 6.0);
+
+    const targetFlinch = blindedByFlashlight ? 1 : 0;
+    this.flinchWeight += (targetFlinch - this.flinchWeight) * Math.min(1, dt * 9.0);
+
+    // Inclinação lateral sinistra pela fresta do batente da porta + mão segurando o portal
+    if (this.peekWeight > 0.01) {
+      if (this.bones.spine1 && this.bones.spine2) {
+        _tmpEuler.set(0.08 * this.peekWeight, 0.12 * this.peekWeight, -0.22 * this.peekWeight);
+        _tmpQuat.setFromEuler(_tmpEuler);
+        this.bones.spine1.quaternion.multiply(_tmpQuat);
+        this.bones.spine2.quaternion.multiply(_tmpQuat);
+      }
+      if (this.bones.leftArm && this.bones.leftForeArm) {
+        _tmpEuler.set(-0.48 * this.peekWeight, 0.22 * this.peekWeight, 0.35 * this.peekWeight);
+        this.bones.leftArm.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+        _tmpEuler.set(-0.55 * this.peekWeight, 0, 0);
+        this.bones.leftForeArm.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      }
+    }
+
+    // Rastreamento ocular e cervical mirando diretamente o jogador + espasmos estilo Loutermilch (Outlast 2)
+    if (this.bones.neck && this.bones.head) {
+      const toCamYaw = Math.atan2(cameraPos.x - this.worldPos.x, cameraPos.z - this.worldPos.z);
+      let relYaw = toCamYaw - this.currentYaw;
+      while (relYaw > Math.PI) relYaw -= Math.PI * 2;
+      while (relYaw < -Math.PI) relYaw += Math.PI * 2;
+      relYaw = THREE.MathUtils.clamp(relYaw, -0.78, 0.78);
+
+      const twitch =
+        this.config.id === 'valdir' && Math.sin(time * 7.3) > 0.92
+          ? (Math.random() - 0.5) * 0.26
+          : Math.sin(time * 1.9 + 1.3) * 0.035;
+
+      const flinchTurn = this.flinchWeight * 0.52;
+      const flinchPitch = this.flinchWeight * 0.28;
+
+      _tmpEuler.set(flinchPitch * 0.4, relYaw * 0.38 - flinchTurn * 0.4, twitch * 0.4);
+      this.bones.neck.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+
+      _tmpEuler.set(
+        -0.06 + flinchPitch * 0.6,
+        relYaw * 0.52 - flinchTurn * 0.6,
+        0.09 * this.peekWeight + twitch
+      );
+      this.bones.head.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+    }
+
+    // Reação visceral ao facho de halogênio da Lanterna [F]: protege o rosto com o antebraço e rosna!
+    if (this.flinchWeight > 0.01 && this.bones.leftArm && this.bones.leftForeArm) {
+      _tmpEuler.set(-1.15 * this.flinchWeight, 0.35 * this.flinchWeight, 0.25 * this.flinchWeight);
+      this.bones.leftArm.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      _tmpEuler.set(-1.05 * this.flinchWeight, 0, 0);
+      this.bones.leftForeArm.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+    }
+
+    // Boca entreaberta respirando pesado no escuro ou escancarada ao ser ofuscado / atacar
+    const targetMouth =
+      this.flinchWeight > 0.2
+        ? 0.78
+        : pose === 'doorBreach' || pose === 'windowBreach'
+          ? 0.45 + Math.sin(time * 6.0) * 0.18
+          : 0.12 + Math.max(0, Math.sin(time * 2.2)) * 0.14;
+    this.mouthOpenVal += (targetMouth - this.mouthOpenVal) * Math.min(1, dt * 8.0);
+    this.setJawMorph(this.mouthOpenVal, pose === 'doorPeek' ? 0.22 : 0.05);
+  }
+
+  /** Compatibilidade legada simples caso algum trecho chame setPose */
+  setPose(
+    pose: TeacherPose,
+    enterAnim: number,
+    time: number,
+    cameraPos: THREE.Vector3
+  ): void {
+    this.updatePose({
+      dt: 1 / 60,
+      pose,
+      enterAnim,
+      time,
+      cameraPos,
+    });
   }
 }

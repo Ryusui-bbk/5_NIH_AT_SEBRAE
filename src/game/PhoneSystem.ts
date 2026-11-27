@@ -1007,19 +1007,56 @@ export class PhoneSystem {
     };
 
     if (this.activeCamera === 'cam1') {
-      // Perspectiva do Corredor Bloco A
-      x.strokeStyle = '#1f4d33';
-      x.lineWidth = 1.5;
-      x.strokeRect(48, 28, w - 96, h - 56);
+      // Perspectiva IR do Corredor Outlast 2 (forro modular T-Bar, luminária estourada e reflexo no piso úmido!)
+      const hallGrad = x.createLinearGradient(0, 0, 0, h);
+      hallGrad.addColorStop(0, '#092216');
+      hallGrad.addColorStop(0.48, '#040d08');
+      hallGrad.addColorStop(1, '#081d13');
+      x.fillStyle = hallGrad;
+      x.fillRect(0, 0, w, h);
+
+      // Luminária fluorescente estourada no teto + reflexo espelhado no piso molhado
+      const ceilGlow = x.createRadialGradient(w / 2, 24, 2, w / 2, 24, 52);
+      ceilGlow.addColorStop(0, 'rgba(209, 250, 229, 0.85)');
+      ceilGlow.addColorStop(0.4, 'rgba(52, 211, 153, 0.22)');
+      ceilGlow.addColorStop(1, 'rgba(16, 185, 129, 0)');
+      x.fillStyle = ceilGlow;
+      x.fillRect(0, 0, w, 76);
+
+      const floorRefl = x.createRadialGradient(w / 2, h - 18, 2, w / 2, h - 18, 48);
+      floorRefl.addColorStop(0, 'rgba(167, 243, 208, 0.35)');
+      floorRefl.addColorStop(1, 'rgba(16, 185, 129, 0)');
+      x.fillStyle = floorRefl;
+      x.fillRect(0, h - 64, w, 64);
+
+      x.strokeStyle = 'rgba(74, 222, 128, 0.32)';
+      x.lineWidth = 1.2;
+      x.strokeRect(58, 34, w - 116, h - 68);
       x.beginPath();
       x.moveTo(0, 0);
-      x.lineTo(48, 28);
+      x.lineTo(58, 34);
       x.moveTo(w, 0);
-      x.lineTo(w - 48, 28);
+      x.lineTo(w - 58, 34);
       x.moveTo(0, h);
-      x.lineTo(48, h - 28);
+      x.lineTo(58, h - 34);
       x.moveTo(w, h);
-      x.lineTo(w - 48, h - 28);
+      x.lineTo(w - 58, h - 34);
+      // Barra bicolor nas paredes laterais
+      x.moveTo(0, h * 0.62);
+      x.lineTo(58, h * 0.56);
+      x.moveTo(w, h * 0.62);
+      x.lineTo(w - 58, h * 0.56);
+      x.stroke();
+
+      // Buraco escuro da placa de forro arrancada + cabos pendurados
+      x.fillStyle = '#020604';
+      x.fillRect(82, 12, 24, 11);
+      x.strokeStyle = 'rgba(134, 239, 172, 0.45)';
+      x.beginPath();
+      x.moveTo(90, 23);
+      x.lineTo(89, 39);
+      x.moveTo(97, 23);
+      x.lineTo(99, 43);
       x.stroke();
 
       const present = (['marcos', 'ricardo'] as TeacherId[]).filter(
