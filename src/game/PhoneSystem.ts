@@ -7,6 +7,7 @@ import {
   TaskType,
   TeacherId,
 } from '../types';
+import { ICONS } from '../ui/icons';
 
 interface ShortenerOption {
   label: string;
@@ -158,16 +159,16 @@ export class PhoneSystem {
 
   private shuffleShortener(): void {
     const traps = [
-      '🎁 GANHOU BOLSA INTEGRAL! RESGATAR',
-      '⚠️ ATUALIZAR JAVA DO NSA.EXE',
-      '⬇️ BAIXAR ACELERADOR 5G GRÁTIS',
-      '🔔 VER NOTA VAZADA DO CONSELHO',
+      'BAIXAR ATUALIZACAO_NSA_2026.EXE',
+      'RESGATAR BOLSA ESTUDANTIL AGORA!',
+      'INSTALAR ACELERADOR DE SINAL 5G',
+      'VER GABARITO VAZADO DO CONSELHO',
     ];
     const pickedTraps = traps.sort(() => Math.random() - 0.5).slice(0, 2);
     this.shortenerOptions = [
       { label: pickedTraps[0], real: false, styleClass: 'ph-btn-trap1' },
       { label: pickedTraps[1], real: false, styleClass: 'ph-btn-trap2' },
-      { label: 'Prosseguir para link seguro ▶', real: true, styleClass: 'ph-btn-subtle' },
+      { label: 'Prosseguir para o destino >', real: true, styleClass: 'ph-btn-subtle' },
     ].sort(() => Math.random() - 0.5);
   }
 
@@ -382,14 +383,14 @@ export class PhoneSystem {
   }
 
   private updateSimonPreviewBox(): void {
-    const colors = ['#ef4444', '#22c55e', '#3b82f6', '#eab308'];
+    const colors = ['#c42b2b', '#439c63', '#2e6eb5', '#c9932c'];
     const preview = this.container.querySelector('#ph-simon-preview') as HTMLElement | null;
     if (!preview) return;
     if (this.simonLitPad >= 0) {
       preview.style.background = colors[this.simonLitPad];
-      preview.style.boxShadow = `0 0 24px ${colors[this.simonLitPad]}`;
+      preview.style.boxShadow = `0 0 18px ${colors[this.simonLitPad]}`;
     } else {
-      preview.style.background = '#141923';
+      preview.style.background = '#070709';
       preview.style.boxShadow = 'none';
     }
   }
@@ -397,12 +398,14 @@ export class PhoneSystem {
   renderDOM(snap: GameSnapshot): void {
     if (snap.phoneBattery <= 0) {
       this.container.innerHTML = `
-        <div class="ph-statusbar"><span>--:--</span><span>🪫 0%</span></div>
+        <div class="ph-notch"></div>
+        <div class="ph-statusbar"><span>--:--</span><span>0%</span></div>
         <div class="ph-dead">
-          <div class="ph-dead-icon">🪫</div>
-          <h3>Bateria Esgotada</h3>
-          <p>Guarde o celular (S / Espaço) para recarregar no Powerbank sobre sua carteira!</p>
+          <div class="ph-dead-icon">${ICONS.battery}</div>
+          <h3>Aparelho Desligado</h3>
+          <p>Guarde o celular [S] para recarregar no Powerbank sobre a carteira.</p>
         </div>
+        <div class="ph-homebar"></div>
       `;
       return;
     }
@@ -417,10 +420,10 @@ export class PhoneSystem {
       const valdirDisp = this.storage.getTeacherDisplay('valdir');
       bodyHtml = `
         <div class="ph-valdir-lock">
-          <div class="ph-warn-tag">SISTEMA ACADÊMICO NSA</div>
-          <h3>⚠️ TERMO DE ADVERTÊNCIA</h3>
-          <p><b>${valdirDisp.name}</b> detectou tráfego não autorizado na Sala 04.</p>
-          <p class="ph-small">Dispense este aviso e jogue a <b>Lanterna (F)</b> no Quadro-Negro à frente!</p>
+          <div class="ph-warn-tag">SISTEMA ACADÊMICO NSA // BLOQUEIO</div>
+          <h3>TERMO DE ADVERTÊNCIA</h3>
+          <p><b>${valdirDisp.name}</b> interceptou tráfego na rede da Sala 04.</p>
+          <p class="ph-small">Assine para liberar a tela e acenda a <b>Lanterna [F]</b> no Quadro-Negro à frente.</p>
           <button class="ph-btn-danger" data-act="dismiss-valdir">ASSINAR E DISPENSAR</button>
         </div>
       `;
@@ -436,17 +439,17 @@ export class PhoneSystem {
       <div class="ph-notch"></div>
       <div class="ph-statusbar">
         <span id="ph-clk-val">${snap.clockText}</span>
-        <span>4G ▂▄▆ · 🔋<b id="ph-bat-val">${Math.ceil(snap.phoneBattery)}%</b></span>
+        <span>4G · <b id="ph-bat-val">${Math.ceil(snap.phoneBattery)}%</b></span>
       </div>
       <div class="ph-tabs">
         <button class="ph-tab ${this.currentApp === 'resgate' ? 'active' : ''}" data-app="resgate">
-          🆘 Resgate
+          ${ICONS.shield}<span>Rede</span>
         </button>
         <button class="ph-tab ${this.currentApp === 'cftv' ? 'active' : ''}" data-app="cftv">
-          📹 CFTV ${bellBadge}
+          ${ICONS.camera}<span>CFTV</span>${bellBadge}
         </button>
         <button class="ph-tab ${this.currentApp === 'zap' ? 'active' : ''}" data-app="zap">
-          💬 Dicas ${zapBadge}
+          ${ICONS.chat}<span>Chat</span>${zapBadge}
         </button>
       </div>
       <div class="ph-screen-body">
@@ -462,9 +465,9 @@ export class PhoneSystem {
     if (snap.nightConfig.mode === 'survive6am') {
       return `
         <div class="ph-card">
-          <div class="ph-url">🔒 nsa.etec.sp.gov.br/ponto</div>
-          <h3>Modo Sobrevivência 6AM</h3>
-          <p class="ph-small">O portão abrirá automaticamente às <b>06:00 AM</b>. Use o app <b>CFTV</b> para vigiar a equipe e manter o sinal da CAM 03 adiado!</p>
+          <div class="ph-url">https://nsa.etec.local/trava-horaria</div>
+          <h3>Trava Automática 06:00</h3>
+          <p class="ph-small">Os portões destravarão às <b>06:00 AM</b>. Monitore os corredores no <b>CFTV</b> e mantenha a sirene da CAM 03 adiada.</p>
         </div>
       `;
     }
@@ -472,15 +475,15 @@ export class PhoneSystem {
     if (snap.taskIndex >= snap.totalTasks) {
       return `
         <div class="ph-card">
-          <h3>✅ Protocolo Concluído!</h3>
-          <p>Sinal de emergência transmitido!</p>
+          <h3>Sinal Transmitido</h3>
+          <p class="ph-small">Chamado registrado com sucesso.</p>
         </div>
       `;
     }
 
     const stepHeader = `
       <div class="ph-step-bar">
-        <span>Etapa ${snap.taskIndex + 1} de ${snap.totalTasks}</span>
+        <span>ETAPA ${snap.taskIndex + 1}/${snap.totalTasks}</span>
         <div class="ph-dots">
           ${Array.from({ length: snap.totalTasks })
             .map(
@@ -497,19 +500,19 @@ export class PhoneSystem {
         if (this.shortenerCd > 0) {
           return `
             ${stepHeader}
-            <div class="ph-url">🔒 linkcurto.io/desbloqueio-190</div>
+            <div class="ph-url">http://encurta-etec.net/gate-bypass</div>
             <div class="ph-card">
-              <h3>Liberando túnel DNS...</h3>
+              <h3>Aguardando liberação DNS...</h3>
               <div class="ph-big-num" id="ph-short-cd">${Math.ceil(this.shortenerCd)}</div>
-              <p class="ph-small">Mantenha a tela aberta para o contador avançar.</p>
+              <p class="ph-small">Mantenha a tela ativa até zerar.</p>
             </div>
           `;
         }
         return `
           ${stepHeader}
-          <div class="ph-url">🔒 linkcurto.io/pronto</div>
+          <div class="ph-url">http://encurta-etec.net/pronto</div>
           <div class="ph-card">
-            <h3>Link pronto! Cuidado com anúncios falsos:</h3>
+            <h3>Evite os links falsos:</h3>
             <div class="ph-stack">
               ${this.shortenerOptions
                 .map(
@@ -525,13 +528,13 @@ export class PhoneSystem {
       case 'captcha': {
         return `
           ${stepHeader}
-          <div class="ph-url">🔒 firewall.etec/captcha</div>
+          <div class="ph-url">https://firewall.sebrae/auth</div>
           <div class="ph-card">
-            <h3>Prove que é humano</h3>
+            <h3>Verificação de Segurança</h3>
             <div class="ph-math-box">${this.captchaExpr}</div>
-            <div class="ph-input-preview">${this.captchaInput || '?'}</div>
+            <div class="ph-input-preview">${this.captchaInput || '_'}</div>
             <div class="ph-numpad">
-              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, 'OK']
+              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 'DEL', 0, 'OK']
                 .map((k) => `<button data-capkey="${k}">${k}</button>`)
                 .join('')}
             </div>
@@ -540,23 +543,23 @@ export class PhoneSystem {
       }
 
       case 'memory': {
-        const colors = ['#ef4444', '#22c55e', '#3b82f6', '#eab308'];
+        const colors = ['#c42b2b', '#439c63', '#2e6eb5', '#c9932c'];
         if (this.simonShowing) {
           return `
             ${stepHeader}
-            <div class="ph-url">🔒 auth.sebrae/token-visual</div>
+            <div class="ph-url">https://nsa.local/token-optico</div>
             <div class="ph-card">
-              <h3>Memorize os ${this.simonSeq.length} sinais</h3>
+              <h3>Memorize ${this.simonSeq.length} pulsos</h3>
               <div id="ph-simon-preview" class="ph-simon-single"></div>
-              <p class="ph-small">Observe a ordem das cores...</p>
+              <p class="ph-small">Aguarde a transmissão da sequência...</p>
             </div>
           `;
         }
         return `
           ${stepHeader}
-          <div class="ph-url">🔒 auth.sebrae/token-visual</div>
+          <div class="ph-url">https://nsa.local/token-optico</div>
           <div class="ph-card">
-            <h3>Repita (${this.simonInput.length}/${this.simonSeq.length})</h3>
+            <h3>Repita a ordem (${this.simonInput.length}/${this.simonSeq.length})</h3>
             <div class="ph-simon-grid">
               ${colors
                 .map(
@@ -572,20 +575,20 @@ export class PhoneSystem {
       case 'wifi': {
         return `
           ${stepHeader}
-          <div class="ph-url">📡 192.168.0.1/antena-4g</div>
+          <div class="ph-url">192.168.0.1 // MODEM BLOCO B</div>
           <div class="ph-card">
-            <h3>Alinhe as ondas do sinal</h3>
+            <h3>Sincronizar Portadora 4G</h3>
             <canvas id="ph-wifi-canvas" width="240" height="96"></canvas>
             <div class="ph-tuner-controls">
               <div class="ph-tuner-row">
-                <span>Frequência: <b>${this.userFreq}</b></span>
+                <span>FREQ: <b>${this.userFreq} Hz</b></span>
                 <div>
                   <button data-wifi="f-">-</button>
                   <button data-wifi="f+">+</button>
                 </div>
               </div>
               <div class="ph-tuner-row">
-                <span>Amplitude: <b>${this.userAmp}</b></span>
+                <span>GANHO: <b>${this.userAmp} dB</b></span>
                 <div>
                   <button data-wifi="a-">-</button>
                   <button data-wifi="a+">+</button>
@@ -597,16 +600,16 @@ export class PhoneSystem {
       }
 
       case 'pin': {
-        const masked = this.pinInput.padEnd(4, '•');
+        const masked = this.pinInput.padEnd(4, '·');
         return `
           ${stepHeader}
-          <div class="ph-url">🔐 catraca.bloco-b/pin</div>
+          <div class="ph-url">catraca.portaria // PIN DIÁRIO</div>
           <div class="ph-card">
-            <h3>Senha Diária da Catraca</h3>
-            <p class="ph-small">Dica: veja o post-it no <b>Mural Esquerdo</b> ou na <b>CAM 04</b>!</p>
-            <div class="ph-input-preview ph-mono">${masked}</div>
+            <h3>Código da Portaria</h3>
+            <p class="ph-small">Anote no <b>Mural Esquerdo</b> da sala ou na <b>CAM 04</b>.</p>
+            <div class="ph-input-preview">${masked}</div>
             <div class="ph-numpad">
-              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'OK']
+              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 'CLR', 0, 'OK']
                 .map((k) => `<button data-pinkey="${k}">${k}</button>`)
                 .join('')}
             </div>
@@ -619,23 +622,23 @@ export class PhoneSystem {
         if (this.callActive) {
           return `
             ${stepHeader}
-            <div class="ph-url">📞 Chamada de Emergência</div>
+            <div class="ph-url">VOZ // LINHA DE EMERGÊNCIA</div>
             <div class="ph-card ph-calling">
-              <div class="ph-pulse-ring">🚓</div>
-              <h3>190 — COPOM Atendeu!</h3>
-              <p id="ph-call-timer">Rastreando Sala 04... ${Math.ceil(this.callCountdown)}s</p>
-              <p class="ph-small">Mantenha a linha aberta na tela até concluir!</p>
+              <div class="ph-pulse-ring">${ICONS.call}</div>
+              <h3>190 — COPOM Conectado</h3>
+              <p id="ph-call-timer" class="ph-small">Rastreando Sala 04... ${Math.ceil(this.callCountdown)}s</p>
+              <p class="ph-small">Não feche o aparelho até concluir o rastreio.</p>
             </div>
           `;
         }
         return `
           ${stepHeader}
-          <div class="ph-url">📞 Telefone de Emergência</div>
+          <div class="ph-url">DISCADOR DE EMERGÊNCIA</div>
           <div class="ph-card">
             <h3>Disque 190 para Resgate</h3>
-            <div class="ph-input-preview ph-mono">${this.dialInput || '—'}</div>
+            <div class="ph-input-preview">${this.dialInput || '---'}</div>
             <div class="ph-numpad">
-              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '📞']
+              ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 'CLR', 0, 'LIGAR']
                 .map((k) => `<button data-dialkey="${k}">${k}</button>`)
                 .join('')}
             </div>
@@ -649,7 +652,7 @@ export class PhoneSystem {
     const cams: { id: CameraId; label: string }[] = [
       { id: 'cam1', label: 'CAM 01 · Corredor' },
       { id: 'cam2', label: 'CAM 02 · Pátio' },
-      { id: 'cam3', label: 'CAM 03 · Sinal' },
+      { id: 'cam3', label: 'CAM 03 · Sirene' },
       { id: 'cam4', label: 'CAM 04 · Sala Prof.' },
     ];
 
@@ -661,15 +664,15 @@ export class PhoneSystem {
           ? `
           <div class="ph-bell-box">
             <div class="ph-bell-meter">
-              <span>Temporizador da Sirene: <b>${bellPct}%</b></span>
+              <span>CARGA DA SIRENE: <b>${bellPct}%</b></span>
               <div class="ph-bell-bar"><i style="width:${bellPct}%;background:${
-                bellPct < 32 ? '#ef4444' : '#22c55e'
+                bellPct < 32 ? '#c42b2b' : '#59b377'
               }"></i></div>
             </div>
-            <button class="ph-btn-bell" data-act="rewind-bell">🔔 ADIAR SINAL (+35%)</button>
+            <button class="ph-btn-bell" data-act="rewind-bell">${ICONS.bell} ADIAR SINAL (+35%)</button>
           </div>
         `
-          : `<p class="ph-small">Painel da sirene desligado nesta noite.</p>`
+          : `<p class="ph-small">Sirene desativada neste turno.</p>`
         : '';
 
     return `
@@ -695,7 +698,7 @@ export class PhoneSystem {
   private renderZapApp(snap: GameSnapshot): string {
     return `
       <div class="ph-zap-list">
-        <div class="ph-zap-header">💬 Grupo: Sobreviventes ETEC</div>
+        <div class="ph-zap-header">CANAL // TURMA DA RECUPERAÇÃO</div>
         ${snap.nightConfig.veteranoMessages
           .map(
             (m) => `
@@ -707,7 +710,7 @@ export class PhoneSystem {
           )
           .join('')}
         <div class="ph-msg-tip">
-          <b>Resumo Rápido:</b> ${snap.nightConfig.briefingTip}
+          <b>NOTA FIXADA:</b> ${snap.nightConfig.briefingTip}
         </div>
       </div>
     `;
@@ -771,7 +774,7 @@ export class PhoneSystem {
     this.container.querySelectorAll('[data-capkey]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const k = (btn as HTMLElement).dataset.capkey!;
-        if (k === '⌫') {
+        if (k === 'DEL') {
           this.captchaInput = this.captchaInput.slice(0, -1);
           this.sound.playTap(0.8);
           this.renderDOM(fresh());
@@ -821,7 +824,7 @@ export class PhoneSystem {
     this.container.querySelectorAll('[data-pinkey]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const k = (btn as HTMLElement).dataset.pinkey!;
-        if (k === 'C') {
+        if (k === 'CLR') {
           this.pinInput = '';
           this.sound.playTap(0.8);
           this.renderDOM(fresh());
@@ -842,11 +845,11 @@ export class PhoneSystem {
     this.container.querySelectorAll('[data-dialkey]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const k = (btn as HTMLElement).dataset.dialkey!;
-        if (k === 'C') {
+        if (k === 'CLR') {
           this.dialInput = '';
           this.sound.playTap(0.8);
           this.renderDOM(fresh());
-        } else if (k === '📞') {
+        } else if (k === 'LIGAR') {
           this.submitDial(fresh());
         } else if (this.dialInput.length < 3) {
           this.dialInput += k;
@@ -863,11 +866,11 @@ export class PhoneSystem {
     const w = this.wifiCanvas.width;
     const h = this.wifiCanvas.height;
 
-    x.fillStyle = '#08111a';
+    x.fillStyle = '#070a08';
     x.fillRect(0, 0, w, h);
 
-    // Grade do osciloscópio
-    x.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+    // Grade do osciloscópio analógico
+    x.strokeStyle = 'rgba(89, 179, 119, 0.14)';
     x.lineWidth = 1;
     for (let gx = 0; gx < w; gx += 24) {
       x.beginPath();
@@ -880,8 +883,8 @@ export class PhoneSystem {
     x.lineTo(w, h / 2);
     x.stroke();
 
-    // Onda alvo (verde tracejada)
-    x.strokeStyle = 'rgba(74, 222, 128, 0.72)';
+    // Onda alvo (fósforo verde)
+    x.strokeStyle = 'rgba(89, 179, 119, 0.52)';
     x.lineWidth = 2;
     x.beginPath();
     for (let px = 0; px < w; px++) {
@@ -894,9 +897,9 @@ export class PhoneSystem {
     }
     x.stroke();
 
-    // Onda do jogador (ciano brilhante)
+    // Onda do jogador (âmbar -> fósforo ao sincronizar)
     const matched = this.userFreq === this.targetFreq && this.userAmp === this.targetAmp;
-    x.strokeStyle = matched ? '#4ade80' : '#38bdf8';
+    x.strokeStyle = matched ? '#6ee7a8' : '#d69e36';
     x.lineWidth = 2.6;
     x.beginPath();
     for (let px = 0; px < w; px++) {
@@ -1056,9 +1059,9 @@ export class PhoneSystem {
           drawFigure(178, 78, pct < 35 ? 1.05 : 0.82, 'celia', pct < 35 ? '[LEVANTANDO!]' : '[POSTO]');
         } else {
           x.fillStyle = '#f87171';
-          x.font = 'bold 12px monospace';
+          x.font = 'bold 11px monospace';
           x.textAlign = 'center';
-          x.fillText('⚠️ SAIU DA SECRETARIA!', 172, 78);
+          x.fillText('[POSTO VAZIO!]', 172, 78);
         }
       }
     } else {

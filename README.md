@@ -17,10 +17,10 @@ Guiados pelo antigo **Diário de Classe**, os docentes e inspetores permanecem e
 - **Cenário 3D Completo em Three.js**: Sala de aula detalhada com vão real de porta para o corredor iluminado, janela com vista para o pátio noturno sob chuva e relâmpagos, persiana rolô funcional, trava magnética, relógio de parede sincronizado, quadro-negro dinâmico, mural de cortiça com post-it da senha diária e Powerbank com LEDs sobre a carteira.
 - **Campanha Completa (Noites 1 a 5)**: Dificuldade progressiva apresentando novos membros da equipe e novos desafios a cada madrugada.
 - **Conselho de Classe (Custom Night 0–20)**: Configure individualmente a IA de cada um dos 5 antagonistas de `0` a `20`, escolha entre presets temáticos (incluindo o lendário *Modo 5/20 — Jubilado*) e alterne entre **Modo Protocolo** ou **Sobrevivência Clássica até 06:00 AM**.
-- **Smartphone Interativo (SebraeOS)** com 3 aplicativos:
-  - **🆘 Resgate 190**: 6 minigames variados (*Encurtador Amaldiçoado*, *CAPTCHA Anti-Robô*, *Sequência de Memória*, *Osciloscópio de Antena 4G*, *Senha Diária da Catraca* e *Discador 190*).
-  - **📹 CFTV ETEC**: 4 câmeras de segurança em visão noturna em tempo real (*Corredor*, *Pátio*, *Secretaria/Sirene* e *Sala dos Professores*).
-  - **💬 Dicas do Veterano**: Mensagens contextuais com dicas táticas a cada noite.
+- **Smartphone Interativo** com 3 aplicativos:
+  - **Rede (Protocolo 190)**: 6 minigames variados (*Encurtador Amaldiçoado*, *CAPTCHA Anti-Robô*, *Sequência de Memória*, *Osciloscópio de Antena 4G*, *Senha Diária da Catraca* e *Discador 190*).
+  - **CFTV ETEC**: 4 câmeras de segurança em visão noturna em tempo real (*Corredor*, *Pátio*, *Secretaria/Sirene* e *Sala dos Professores*).
+  - **Chat da Turma**: Mensagens contextuais com dicas táticas a cada noite.
 - **Dossiê & Editor de Professores**: Personalize o **nome**, **matéria**, **frase de ataque** e faça **upload de fotos reais** (`.jpg` / `.png`) diretamente pelo menu — aplicadas automaticamente nos rostos e crachás 3D!
 - **Áudio Espacial Procedural (Web Audio API)**: Passos posicionados em estéreo (esquerda/direita), chuva noturna, trovoadas, batidas na vidraça, chiado de CFTV, batimento cardíaco dinâmico e sirene policial — zero dependência de arquivos externos.
 - **Sistema de Conquistas & Salvamento Automático**: Progresso, recordes, configurações de acessibilidade e customizações salvos em `localStorage`.
@@ -63,8 +63,11 @@ npm install
 # Rodar servidor de desenvolvimento
 npm run dev
 
-# Gerar build de produção (dist/)
+# Gerar build de produção (dist/) + arquivo único portátil (plantao-noturno.html)
 npm run build
+
+# Gerar apenas o arquivo único portátil para abrir direto no navegador (offline)
+npm run build:standalone
 ```
 
 ---
@@ -91,6 +94,7 @@ src/
 │   ├── GameEngine.ts           # Loop de sobrevivência, IA, bateria, estresse e vitória/derrota
 │   └── PhoneSystem.ts          # Smartphone SebraeOS (6 minigames, CFTV ao vivo e mensagens)
 └── ui/
-    ├── UIManager.ts            # Menus, Dossiê, Editor de Fotos, Custom Night e HUD
-    └── styles.css              # Estilização responsiva desktop & mobile
+    ├── icons.ts                # Conjunto de ícones vetoriais monocromáticos (SVG)
+    ├── UIManager.ts            # Menus VHS/Dossiê, Editor de Fotos, Custom Night e HUD
+    └── styles.css              # Design system indie horror (VHS, carimbos e HUD)
 ```
