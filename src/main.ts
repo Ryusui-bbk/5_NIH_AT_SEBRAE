@@ -102,7 +102,7 @@ const engine = new GameEngine({
   storage,
   onJumpscare: (teacherId: TeacherId, done: () => void) => {
     inJumpscare = true;
-    phoneEl.style.display = 'none';
+    phoneEl.classList.remove('phone-mounted', 'phone-raised');
     hudRoot.style.display = 'none';
     ui.triggerRedFlash(0.85);
     classroom.triggerJumpscare(teacherId);
@@ -114,6 +114,7 @@ const engine = new GameEngine({
   },
   onGameEnd: (payload) => {
     latestSnapshot = null;
+    phoneEl.classList.remove('phone-mounted', 'phone-raised');
     ui.showEndScreen(payload, activeNightConfig);
   },
 });
@@ -151,6 +152,7 @@ const ui = new UIManager({
       latestSnapshot = snap;
       classroom.setDailyPin(engine.getDailyPin());
       phoneSystem.resetForNight(config.tasks[0] ?? null);
+      phoneSystem.renderDOM(snap);
       ui.updateHUD(snap);
     },
     onSetView: (v) => changeView(v),
@@ -280,7 +282,7 @@ function animate(now: number): void {
       if (snap.view === 'P' && (snap.valdirPopup !== prevPopup || nowBatZero !== prevBatZero)) {
         phoneSystem.renderDOM(snap);
       }
-      phoneSystem.update(dt, snap);
+      phoneSystem.update(dt, snap, classroom.getMouseNDC());
       ui.updateHUD(snap);
     }
   }

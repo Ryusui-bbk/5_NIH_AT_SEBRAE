@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 
-// Embute modelos 3D rigged (.glb) e capturas de movimento diretamente no HTML standalone offline!
+// Embute modelos 3D rigged (.glb), capturas de movimento e mão fotorrealista do celular diretamente no HTML standalone offline!
 const modelsDir = path.join(root, 'public/models');
 const inlineGlbs = {};
 if (fs.existsSync(modelsDir)) {
@@ -14,6 +14,12 @@ if (fs.existsSync(modelsDir)) {
       inlineGlbs[file] = buf.toString('base64');
     }
   }
+}
+
+let inlinePhoneRig = '';
+const phoneRigPath = path.join(root, 'public/images/phone-hand-rig.webp');
+if (fs.existsSync(phoneRigPath)) {
+  inlinePhoneRig = `data:image/webp;base64,${fs.readFileSync(phoneRigPath).toString('base64')}`;
 }
 
 const jsResult = await esbuild.build({
@@ -37,7 +43,7 @@ const cssResult = await esbuild.build({
 
 const jsCode = jsResult.outputFiles[0].text.replace(/<\/script>/gi, '<\\/script>');
 const cssCode = cssResult.outputFiles[0].text;
-const inlineAssetsScript = `window.__INLINE_GLBS__=${JSON.stringify(inlineGlbs)};`;
+const inlineAssetsScript = `window.__INLINE_GLBS__=${JSON.stringify(inlineGlbs)};window.__INLINE_PHONE_RIG__=${JSON.stringify(inlinePhoneRig)};`;
 
 const html = `<!DOCTYPE html>
 <html lang="pt-BR">

@@ -859,6 +859,8 @@ canvas {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 16;
+  pointer-events: none;
   padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
@@ -1032,39 +1034,159 @@ canvas {
   display: none;
 }
 
-/* ==================== APARELHO CELULAR (HARDWARE FOSCO REALISTA) ==================== */
+/* ==================== CELULAR EM 1ª PESSOA COM MÃO DIREITA FOTORREALISTA ==================== */
 #phone-device {
+  --ph-rx: 2.6deg;
+  --ph-ry: -2.4deg;
+  --ph-rz: -0.8deg;
+  --ph-ty: 0px;
+  --ph-glare: 38%;
+
   position: fixed;
-  left: 50%;
-  bottom: calc(102px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  width: min(304px, 88vw);
-  height: min(518px, 64vh);
-  background: #0a0b0d;
-  border: 2px solid #25272c;
-  border-radius: 20px;
-  box-shadow:
-    0 0 0 1px #000,
-    0 24px 70px rgba(0, 0, 0, 0.92),
-    0 0 42px rgba(70, 120, 200, 0.16);
-  z-index: 12;
-  padding: 8px 10px 10px;
+  right: clamp(-18px, 3vw, 56px);
+  bottom: -18px;
+  height: min(695px, 85vh);
+  aspect-ratio: 864 / 900;
+  width: auto;
+  z-index: 13;
   display: none;
-  flex-direction: column;
-  overflow: hidden;
-  pointer-events: auto;
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(108%) rotateZ(9deg);
+  transform-origin: 78% 100%;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
   font-family: var(--font-sans);
 }
 
-.ph-cam-pinhole {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #16181d;
-  border: 1px solid #2b2f38;
-  margin: 2px auto 5px;
-  flex-shrink: 0;
+#phone-device.phone-mounted {
+  display: block;
 }
+
+#phone-device.phone-raised {
+  opacity: 1;
+  transform: translateY(0) rotateZ(0deg);
+}
+
+@media (max-width: 780px) {
+  #phone-device {
+    right: auto;
+    left: 62%;
+    height: min(630px, 80vh);
+    transform: translateX(-50%) translateY(108%) rotateZ(8deg);
+  }
+  #phone-device.phone-raised {
+    transform: translateX(-50%) translateY(0) rotateZ(0deg);
+  }
+}
+
+.ph-rig-3d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  transform-origin: 72% 95%;
+  transform:
+    perspective(1050px)
+    translateY(var(--ph-ty))
+    rotateX(var(--ph-rx))
+    rotateY(var(--ph-ry))
+    rotateZ(var(--ph-rz));
+  will-change: transform;
+}
+
+/* Camada fotorrealista da mão direita + chassi de alumínio escovado */
+.ph-photo-hand-rig {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+  filter:
+    brightness(0.94)
+    contrast(1.04)
+    drop-shadow(-16px 22px 42px rgba(0, 0, 0, 0.94));
+}
+
+.ph-rig-3d.ph-screen-off .ph-photo-hand-rig {
+  filter:
+    brightness(0.64)
+    saturate(0.86)
+    drop-shadow(-16px 22px 42px rgba(0, 0, 0, 0.96));
+}
+
+/* Vidro OLED calibrado milimetricamente no recorte interno do bezel metálico */
+.ph-oled-glass {
+  position: absolute;
+  left: 12.413%;
+  top: 7.561%;
+  width: 48.091%;
+  height: 78.989%;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 10%, #10151f 0%, #07090d 70%, #040508 100%);
+  border-radius: 6px;
+  box-shadow:
+    0 0 46px rgba(72, 134, 214, 0.2),
+    inset 0 10px 24px rgba(0, 0, 0, 0.65);
+  padding: 8px 9px 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#phone-device.phone-raised .ph-oled-glass {
+  pointer-events: auto;
+}
+
+.ph-screen-crack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Reflexo especular oblíquo no vidro temperado reagindo à inclinação da mão */
+.ph-glass-glare {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  z-index: 7;
+  background: linear-gradient(
+    116deg,
+    transparent 0%,
+    transparent calc(var(--ph-glare) - 12%),
+    rgba(200, 224, 255, 0.045) calc(var(--ph-glare) - 3%),
+    rgba(255, 255, 255, 0.085) var(--ph-glare),
+    rgba(180, 210, 255, 0.025) calc(var(--ph-glare) + 5%),
+    transparent calc(var(--ph-glare) + 16%),
+    transparent 100%
+  );
+}
+
+.ph-sig-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 9px;
+}
+.ph-sig-bars b {
+  width: 2px;
+  background: #a9b6ca;
+  display: block;
+}
+.ph-sig-bars b:nth-child(1) { height: 3px; }
+.ph-sig-bars b:nth-child(2) { height: 5px; }
+.ph-sig-bars b:nth-child(3) { height: 7px; }
+.ph-sig-bars b:nth-child(4) { height: 9px; opacity: 0.4; }
 
 .ph-statusbar {
   display: flex;

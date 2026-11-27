@@ -1464,89 +1464,100 @@ export function getSlasherPortraitDataUrl(config: TeacherConfig): string {
   const h = 192;
   const [c, x] = makeCanvas(w, h);
 
-  // Fundo nublado estourado e granulado estilo filme 16mm (como o céu esbranquiçado de TCM 1974!)
+  // Fundo nublado escuro e opressivo estilo arquivo policial / Outlast
   const skyGrad = x.createLinearGradient(0, 0, 0, h);
-  skyGrad.addColorStop(0, '#cfcBC2');
-  skyGrad.addColorStop(0.65, '#9d988e');
-  skyGrad.addColorStop(1, '#3b3935');
+  skyGrad.addColorStop(0, '#3a4248');
+  skyGrad.addColorStop(0.55, '#1d2226');
+  skyGrad.addColorStop(1, '#090b0d');
   x.fillStyle = skyGrad;
   x.fillRect(0, 0, w, h);
 
-  // Silhueta esfumaçada do prédio escolar / árvores ao fundo
-  x.fillStyle = 'rgba(42, 40, 37, 0.32)';
-  x.fillRect(14, 78, 56, 114);
-  x.fillRect(132, 92, 48, 100);
+  const shroudPalette: Record<string, { main: string; trim: string; glow: string }> = {
+    valdir: { main: '#7a121b', trim: '#0b0708', glow: '#ff4d5a' },
+    marcos: { main: '#2e1d18', trim: '#120d0b', glow: '#e2c792' },
+    helena: { main: '#421226', trim: '#09060b', glow: '#d8b4fe' },
+    ricardo: { main: '#142534', trim: '#070b10', glow: '#6ec6ff' },
+    celia: { main: '#282e1f', trim: '#0c0e09', glow: '#bef264' },
+  };
+  const pal = shroudPalette[config.id] ?? shroudPalette.valdir;
 
-  // Ombros largos e paletó escuro aberto
-  x.fillStyle = '#141416';
+  // Manto esfarrapado nos ombros (estilo mortalha rasgada da referência!)
+  x.fillStyle = pal.main;
   x.beginPath();
-  x.moveTo(16, 192);
-  x.lineTo(26, 126);
-  x.quadraticCurveTo(54, 112, 96, 114);
-  x.quadraticCurveTo(138, 112, 166, 126);
-  x.lineTo(176, 192);
+  x.moveTo(6, 192);
+  x.lineTo(20, 118);
+  x.quadraticCurveTo(56, 98, 96, 100);
+  x.quadraticCurveTo(136, 98, 172, 118);
+  x.lineTo(186, 192);
   x.closePath();
   x.fill();
 
-  // Camisa social clara amarrotada e manchada aberta no peito
-  x.fillStyle = '#cbc6ba';
-  x.beginPath();
-  x.moveTo(68, 120);
-  x.lineTo(124, 120);
-  x.lineTo(116, 192);
-  x.lineTo(74, 192);
-  x.closePath();
-  x.fill();
-
-  // Gravata escura torta esvoaçando para o lado!
-  x.fillStyle = '#1e191a';
-  x.beginPath();
-  x.moveTo(92, 124);
-  x.lineTo(103, 124);
-  x.lineTo(72, 168);
-  x.lineTo(56, 160);
-  x.closePath();
-  x.fill();
-
-  // Cabelo escuro desgrenhado selvagem ao redor da cabeça (silhueta icônica!)
-  x.fillStyle = '#131214';
-  const spikes = 22;
-  for (let i = 0; i < spikes; i++) {
-    const ang = Math.PI * 0.85 + (i / spikes) * Math.PI * 1.3;
-    const rOut = 48 + ((i * 19) % 17);
+  // Camada superior de gaze preta esfarrapada com rasgos ovais revelando o manto por baixo
+  x.fillStyle = pal.trim;
+  for (let s = 0; s < 9; s++) {
+    const sx = 16 + s * 19;
     x.beginPath();
-    x.ellipse(
-      96 + Math.cos(ang) * 28,
-      66 + Math.sin(ang) * 26,
-      rOut * 0.42,
-      11,
-      ang + 0.3,
-      0,
-      Math.PI * 2
-    );
+    x.moveTo(sx, 112);
+    x.lineTo(sx + 13, 114);
+    x.lineTo(sx + 9, 192);
+    x.lineTo(sx - 3, 192);
+    x.closePath();
     x.fill();
   }
 
-  // Desenha o rosto pálido perturbadíssimo sintetizado!
-  const { canvas: faceCanvas } = renderSlasherFaceBuffers(config, null);
-  x.drawImage(faceCanvas, 52, 26, 88, 96);
+  // Capuz fundo pontiagudo cobrindo o crânio
+  x.fillStyle = pal.main;
+  x.beginPath();
+  x.moveTo(36, 122);
+  x.quadraticCurveTo(38, 22, 96, 12);
+  x.quadraticCurveTo(154, 22, 156, 122);
+  x.closePath();
+  x.fill();
 
-  // Grão fotográfico pesado 16mm + riscos verticais de película + vinheta
+  // Cavidade abissal negra dentro do capuz
+  x.fillStyle = '#040406';
+  x.beginPath();
+  x.moveTo(50, 118);
+  x.quadraticCurveTo(52, 34, 96, 26);
+  x.quadraticCurveTo(140, 34, 142, 118);
+  x.closePath();
+  x.fill();
+
+  // Rosto cadavérico semi-oculto na sombra do capuz
+  x.save();
+  x.globalAlpha = 0.62;
+  const { canvas: faceCanvas } = renderSlasherFaceBuffers(config, null);
+  x.drawImage(faceCanvas, 56, 32, 80, 86);
+  x.restore();
+
+  // Sombra pesada superior do capuz cobrindo a testa + brilho ocular sinistro
+  const hoodShadow = x.createLinearGradient(0, 26, 0, 96);
+  hoodShadow.addColorStop(0, 'rgba(3, 3, 5, 0.96)');
+  hoodShadow.addColorStop(0.55, 'rgba(4, 4, 6, 0.68)');
+  hoodShadow.addColorStop(1, 'rgba(4, 4, 6, 0.05)');
+  x.fillStyle = hoodShadow;
+  x.fillRect(48, 26, 96, 74);
+
+  x.fillStyle = pal.glow;
+  x.beginPath();
+  x.arc(81, 68, 2.3, 0, Math.PI * 2);
+  x.arc(111, 68, 2.3, 0, Math.PI * 2);
+  x.fill();
+
+  // Grão fotográfico pesado 16mm + vinheta
   const img = x.getImageData(0, 0, w, h);
   const d = img.data;
   for (let py = 0; py < h; py++) {
     for (let pxIdx = 0; pxIdx < w; pxIdx++) {
       const idx = (py * w + pxIdx) * 4;
-      const gNoise = (hash2(pxIdx, py, 777) - 0.5) * 42;
-      // Dessatura levemente para tom sépia-frio documental
-      const lum = d[idx] * 0.32 + d[idx + 1] * 0.48 + d[idx + 2] * 0.2;
+      const gNoise = (hash2(pxIdx, py, 777) - 0.5) * 34;
       const vx = (pxIdx - w / 2) / (w / 2);
       const vy = (py - h / 2) / (h / 2);
-      const vig = Math.max(0.32, 1 - (vx * vx + vy * vy) * 0.38);
+      const vig = Math.max(0.28, 1 - (vx * vx + vy * vy) * 0.42);
 
-      d[idx] = clampByte((lum * 0.78 + d[idx] * 0.24 + gNoise) * vig);
-      d[idx + 1] = clampByte((lum * 0.77 + d[idx + 1] * 0.23 + gNoise) * vig);
-      d[idx + 2] = clampByte((lum * 0.72 + d[idx + 2] * 0.22 + gNoise) * vig);
+      d[idx] = clampByte((d[idx] + gNoise) * vig);
+      d[idx + 1] = clampByte((d[idx + 1] + gNoise) * vig);
+      d[idx + 2] = clampByte((d[idx + 2] + gNoise) * vig);
     }
   }
   x.putImageData(img, 0, 0);
@@ -2117,4 +2128,208 @@ export function createPeelingPosterTexture(variant = 0): THREE.CanvasTexture {
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
+
+// ==================== SHREDDED HORROR SHROUD & TORN GAUZE PBR GENERATORS ====================
+
+export interface ShreddedClothPBRSet extends PBRTextureSet {
+  alphaMap: THREE.DataTexture;
+}
+
+/**
+ * Gera tecido esfarrapado e gaze rasgada em camadas estilo aparição sombria (referência image-4):
+ * - 'baseShroud': linho/estopa pesado vincado com rasgos e longas tiras pontiagudas pendentes (alphaTest)
+ * - 'tornGauze': malha/gaze preta grosseira cheia de buracos ovais rasgados e fiapos pendentes
+ */
+export function createShreddedShroudPBR(
+  colorHex: number,
+  seed: number,
+  mode: 'baseShroud' | 'tornGauze'
+): ShreddedClothPBRSet {
+  const w = 384;
+  const h = 384;
+  const [c, ctx] = makeCanvas(w, h);
+  const img = ctx.createImageData(w, h);
+  const px = img.data;
+  const height = new Float32Array(w * h);
+  const rough = new Float32Array(w * h);
+  const alphaData = new Uint8Array(w * h * 4);
+
+  const baseCol = new THREE.Color(colorHex);
+  const br = baseCol.r * 255;
+  const bg = baseCol.g * 255;
+  const bb = baseCol.b * 255;
+
+  for (let y = 0; y < h; y++) {
+    const v = y / h; // 0 = ombros/gola, 1 = pontas rasgadas inferiores
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const idx = y * w + x;
+
+      const macro = fbmTile(u, v * 0.6, 5, 3, 4, seed + 11);
+      const frayNoise = fbmTile(u * 2.2, v * 0.8, 12, 5, 4, seed + 47);
+      const fine = fbmTile(u, v, 36, 36, 2, seed + 89);
+
+      // Trama de fios têxteis grosseiros (gaze/estopa)
+      const warpThread = Math.abs(Math.sin((x + (macro - 0.5) * 6) * (mode === 'tornGauze' ? 1.05 : 1.55)));
+      const weftThread = Math.abs(Math.sin((y + (frayNoise - 0.5) * 5) * (mode === 'tornGauze' ? 0.95 : 1.45)));
+      const weave = (warpThread + weftThread) * 0.5;
+
+      // Vincos verticais profundos de tecido amassado
+      const fold = 0.72 + 0.28 * Math.sin(u * Math.PI * 18 + (macro - 0.5) * 5.2);
+
+      let alpha = 1.0;
+
+      if (mode === 'baseShroud') {
+        // Buracos ocasionais de desgaste no tronco + longas tiras pontiagudas rasgadas abaixo de v = 0.40!
+        const holeDist = worleyTileFast(u, v * 0.75, 6, 5, seed + 131);
+        if (v > 0.14 && v < 0.58 && holeDist < 0.14 + (frayNoise - 0.5) * 0.08) {
+          alpha = 0.0;
+        }
+
+        if (v > 0.38) {
+          // 15 tiras irregulares pontiagudas com bordas desfiadas!
+          const stripPhase = u * 15.0 + (macro - 0.5) * 1.15;
+          const stripCenterDist = Math.abs((stripPhase % 1) - 0.5) * 2.0; // 0 no centro da tira, 1 na fenda
+          const stripId = Math.floor(((stripPhase % 15) + 15) % 15);
+          const maxLen = 0.68 + hash2(stripId, 7, seed) * 0.31; // cada tira termina numa altura diferente!
+          const taper = Math.max(0, (v - 0.38) / Math.max(0.12, maxLen - 0.38));
+          const allowedHalfWidth = (1.0 - Math.pow(taper, 1.25)) * (0.88 + (frayNoise - 0.5) * 0.42);
+          if (v > maxLen || stripCenterDist > allowedHalfWidth) {
+            alpha = 0.0;
+          }
+        }
+      } else {
+        // 'tornGauze': gaze preta esfarrapada cheia de rasgos ovais revelando o manto por baixo (igual image-4!)
+        const tearDist = worleyTileFast(u + (frayNoise - 0.5) * 0.06, v * 0.58, 7, 4, seed + 211);
+        if (v > 0.08 && tearDist < 0.29 + (macro - 0.5) * 0.12) {
+          alpha = 0.0;
+        }
+        // Fiapos longos de gaze preta pendentes na metade inferior
+        if (v > 0.34) {
+          const tendrilPhase = u * 21.0 + (frayNoise - 0.5) * 1.6;
+          const tDist = Math.abs((tendrilPhase % 1) - 0.5) * 2.0;
+          const tId = Math.floor(((tendrilPhase % 21) + 21) % 21);
+          const maxLen = 0.56 + hash2(tId, 13, seed) * 0.42;
+          const taper = Math.max(0, (v - 0.34) / Math.max(0.12, maxLen - 0.34));
+          if (v > maxLen || tDist > (1.0 - taper) * 0.72) {
+            alpha = 0.0;
+          }
+        }
+        // Micro-furos da própria trama aberta da gaze
+        if (weave < 0.26 && v > 0.12) {
+          alpha = 0.0;
+        }
+      }
+
+      // Escurece pontas inferiores com sujeira/sangue seco/fuligem
+      const hemGrime = Math.pow(v, 1.5) * 0.42;
+      const shade = fold * (0.76 + macro * 0.36) * (0.82 + weave * 0.28) * (1.0 - hemGrime);
+
+      const r = br * shade + (fine - 0.5) * 14;
+      const g = bg * shade + (fine - 0.5) * 12;
+      const b = bb * shade + (fine - 0.5) * 12;
+
+      height[idx] = alpha > 0.4 ? Math.max(0, Math.min(1, fold * 0.55 + weave * 0.35 + (fine - 0.5) * 0.1)) : 0;
+      rough[idx] = Math.max(0.68, Math.min(1.0, 0.92 - hemGrime * 0.18 + (weave - 0.5) * 0.08));
+
+      const p = idx * 4;
+      px[p] = clampByte(r);
+      px[p + 1] = clampByte(g);
+      px[p + 2] = clampByte(b);
+      px[p + 3] = 255;
+
+      const aByte = alpha > 0.5 ? 255 : 0;
+      alphaData[p] = aByte;
+      alphaData[p + 1] = aByte;
+      alphaData[p + 2] = aByte;
+      alphaData[p + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+  const map = new THREE.CanvasTexture(c);
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.ClampToEdgeWrapping;
+  map.colorSpace = THREE.SRGBColorSpace;
+
+  const normalMap = heightToNormalTexture(height, w, h, 2.6, THREE.RepeatWrapping, THREE.ClampToEdgeWrapping);
+  const roughnessMap = scalarToRoughnessTexture(rough, w, h, THREE.RepeatWrapping, THREE.ClampToEdgeWrapping);
+
+  const alphaMap = new THREE.DataTexture(alphaData, w, h, THREE.RGBAFormat);
+  alphaMap.wrapS = THREE.RepeatWrapping;
+  alphaMap.wrapT = THREE.ClampToEdgeWrapping;
+  alphaMap.colorSpace = THREE.NoColorSpace;
+  alphaMap.magFilter = THREE.LinearFilter;
+  alphaMap.minFilter = THREE.LinearMipmapLinearFilter;
+  alphaMap.generateMipmaps = true;
+  alphaMap.needsUpdate = true;
+
+  return { map, normalMap, roughnessMap, alphaMap };
+}
+
+/**
+ * Avental pesado de couro rachado manchado de sangue seco e marcações de giz matemático (Prof. Marcos).
+ */
+export function createExecutionerApronPBR(seed = 51): PBRTextureSet {
+  const w = 256;
+  const h = 384;
+  const [c, ctx] = makeCanvas(w, h);
+  const img = ctx.createImageData(w, h);
+  const px = img.data;
+  const height = new Float32Array(w * h);
+  const rough = new Float32Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    const v = y / h;
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const idx = y * w + x;
+      const crack = worleyTileFast(u, v, 14, 18, seed);
+      const stain = fbmTile(u, v, 5, 5, 4, seed + 29);
+
+      const blood = Math.max(0, (stain - 0.52) * 2.1);
+      const crease = crack < 0.08 ? 0.65 : 1.0;
+
+      const r = (48 + stain * 18 + blood * 44) * crease;
+      const g = (31 + stain * 11 - blood * 8) * crease;
+      const b = (24 + stain * 9 - blood * 8) * crease;
+
+      height[idx] = crease * 0.6 + (stain - 0.5) * 0.2;
+      rough[idx] = Math.max(0.28, 0.68 - blood * 0.32);
+
+      const p = idx * 4;
+      px[p] = clampByte(r);
+      px[p + 1] = clampByte(g);
+      px[p + 2] = clampByte(b);
+      px[p + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  // Riscos brancos de giz matemático / contagem de alunos retidos ("||||") no avental!
+  ctx.strokeStyle = 'rgba(222, 218, 205, 0.52)';
+  ctx.lineWidth = 2.2;
+  for (let t = 0; t < 5; t++) {
+    const tx = 58 + t * 11;
+    ctx.beginPath();
+    ctx.moveTo(tx, 128);
+    ctx.lineTo(tx - 3, 158);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(50, 152);
+  ctx.lineTo(112, 134);
+  ctx.stroke();
+
+  ctx.font = 'bold 24px serif';
+  ctx.fillStyle = 'rgba(220, 216, 202, 0.42)';
+  ctx.fillText('∑  π  = 0', 118, 212);
+
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const normalMap = heightToNormalTexture(height, w, h, 2.2);
+  const roughnessMap = scalarToRoughnessTexture(rough, w, h);
+  return { map, normalMap, roughnessMap };
+}
+
 
