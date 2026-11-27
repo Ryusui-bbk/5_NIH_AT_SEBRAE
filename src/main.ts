@@ -158,6 +158,10 @@ const ui = new UIManager({
       engine.toggleFlashlight();
       if (engine.isRunning()) ui.updateHUD(engine.getSnapshot());
     },
+    onToggleNightVision: () => {
+      engine.toggleNightVision();
+      if (engine.isRunning()) ui.updateHUD(engine.getSnapshot());
+    },
     onToggleDoor: () => {
       engine.toggleDoorLock();
       if (engine.isRunning()) ui.updateHUD(engine.getSnapshot());
@@ -233,6 +237,10 @@ window.addEventListener('keydown', (e) => {
   } else if (k === 'f') {
     e.preventDefault();
     engine.toggleFlashlight();
+    ui.updateHUD(engine.getSnapshot());
+  } else if (k === 'n') {
+    e.preventDefault();
+    engine.toggleNightVision();
     ui.updateHUD(engine.getSnapshot());
   } else if (e.code === 'Space') {
     e.preventDefault();

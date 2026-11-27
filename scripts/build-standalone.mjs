@@ -4,6 +4,18 @@ import path from 'node:path';
 
 const root = process.cwd();
 
+// Embute modelos 3D rigged (.glb) e capturas de movimento diretamente no HTML standalone offline!
+const modelsDir = path.join(root, 'public/models');
+const inlineGlbs = {};
+if (fs.existsSync(modelsDir)) {
+  for (const file of fs.readdirSync(modelsDir)) {
+    if (file.endsWith('.glb')) {
+      const buf = fs.readFileSync(path.join(modelsDir, file));
+      inlineGlbs[file] = buf.toString('base64');
+    }
+  }
+}
+
 const jsResult = await esbuild.build({
   entryPoints: [path.join(root, 'src/main.ts')],
   bundle: true,
@@ -25,6 +37,7 @@ const cssResult = await esbuild.build({
 
 const jsCode = jsResult.outputFiles[0].text.replace(/<\/script>/gi, '<\\/script>');
 const cssCode = cssResult.outputFiles[0].text;
+const inlineAssetsScript = `window.__INLINE_GLBS__=${JSON.stringify(inlineGlbs)};`;
 
 const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -46,6 +59,7 @@ const html = `<!DOCTYPE html>
       <div id="phone-device"></div>
       <div id="overlay-root" class="screen-overlay"></div>
     </div>
+    <script>${inlineAssetsScript}</script>
     <script>${jsCode}</script>
   </body>
 </html>

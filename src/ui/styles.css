@@ -902,6 +902,66 @@ canvas {
   background: rgba(212, 155, 66, 0.12);
 }
 
+.rig-tool.nvg-on {
+  border-color: #3ef084;
+  color: #6effa8;
+  background: rgba(24, 180, 88, 0.18);
+  box-shadow: 0 0 12px rgba(62, 240, 132, 0.22);
+}
+
+/* Visor Óptico de Filmadora Infravermelha (Estilo Outlast) */
+.camcorder-reticle {
+  position: fixed;
+  inset: 22px;
+  pointer-events: none;
+  display: none;
+  z-index: 4;
+}
+
+.camcorder-reticle.active {
+  display: block;
+}
+
+.cam-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(110, 255, 168, 0.65);
+  border-style: solid;
+}
+.cam-corner.tl { top: 44px; left: 8px; border-width: 2px 0 0 2px; }
+.cam-corner.tr { top: 44px; right: 8px; border-width: 2px 2px 0 0; }
+.cam-corner.bl { bottom: 96px; left: 8px; border-width: 0 0 2px 2px; }
+.cam-corner.br { bottom: 96px; right: 8px; border-width: 0 2px 2px 0; }
+
+.cam-center-cross {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+}
+.cam-center-cross::before,
+.cam-center-cross::after {
+  content: '';
+  position: absolute;
+  background: rgba(120, 255, 175, 0.42);
+}
+.cam-center-cross::before { left: 10px; top: 0; width: 2px; height: 22px; }
+.cam-center-cross::after { top: 10px; left: 0; width: 22px; height: 2px; }
+
+.cam-nvg-tag {
+  position: absolute;
+  top: 52px;
+  left: 22px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: #7affb2;
+  text-shadow: 0 0 8px rgba(62, 240, 132, 0.65);
+}
+
 .rig-tool.engaged {
   border-color: var(--crimson);
   color: #fca5a5;

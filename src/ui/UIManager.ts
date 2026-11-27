@@ -44,6 +44,7 @@ export class UIManager {
     onStartNight: (config: NightConfig) => void;
     onSetView: (v: ViewDirection) => void;
     onToggleFlashlight: () => void;
+    onToggleNightVision: () => void;
     onToggleDoor: () => void;
     onToggleBlinds: () => void;
     onTogglePause: () => void;
@@ -149,7 +150,7 @@ export class UIManager {
 
           <div class="vhs-bottomline">
             <span>TURNOS VENCIDOS: ${String(save.stats.nightsWon).padStart(2, '0')} · RETENÇÕES: ${String(save.stats.deaths).padStart(2, '0')} · RECORDE CONSELHO: ${save.customNightBestScore}</span>
-            <span>[WASD] VISÃO & CELULAR · [F] LANTERNA · [ESPAÇO] PORTA · [E] PERSIANA</span>
+            <span>[WASD] VISÃO & CELULAR · [N] VISÃO IR · [F] LANTERNA · [ESPAÇO] PORTA · [E] PERSIANA</span>
           </div>
         </div>
       `;
@@ -780,6 +781,15 @@ export class UIManager {
         </div>
       </div>
 
+      <div class="camcorder-reticle" id="hud-nvg-reticle">
+        <i class="cam-corner tl"></i>
+        <i class="cam-corner tr"></i>
+        <i class="cam-corner bl"></i>
+        <i class="cam-corner br"></i>
+        <i class="cam-center-cross"></i>
+        <div class="cam-nvg-tag">● REC // IR-NVG · CAM 04 · 1080i</div>
+      </div>
+
       <div class="danger-strip" id="hud-danger">
         <div class="danger-strip-label" id="hud-danger-txt">PRESENÇA DETECTADA</div>
         <div class="danger-strip-bar"><i id="hud-danger-bar"></i></div>
@@ -792,6 +802,11 @@ export class UIManager {
 
       <div class="hud-bottom-rig">
         <div class="rig-actions">
+          <button class="rig-tool" id="btn-nvg" title="Visão Noturna Infravermelha estilo Filmadora [N]">
+            ${ICONS.nvg}
+            <span>Visão IR</span>
+            <span class="keycap">N</span>
+          </button>
           <button class="rig-tool" id="btn-flash">
             ${ICONS.flashlight}
             <span>Lanterna</span>
@@ -838,6 +853,7 @@ export class UIManager {
     this.hudRoot.querySelector('#nav-P')?.addEventListener('click', () => this.callbacks.onSetView('P'));
     this.hudRoot.querySelector('#nav-R')?.addEventListener('click', () => this.callbacks.onSetView('R'));
 
+    this.hudRoot.querySelector('#btn-nvg')?.addEventListener('click', () => this.callbacks.onToggleNightVision());
     this.hudRoot.querySelector('#btn-flash')?.addEventListener('click', () => this.callbacks.onToggleFlashlight());
     this.hudRoot.querySelector('#btn-door')?.addEventListener('click', () => this.callbacks.onToggleDoor());
     this.hudRoot.querySelector('#btn-blinds')?.addEventListener('click', () => this.callbacks.onToggleBlinds());
@@ -948,6 +964,10 @@ export class UIManager {
       dot.style.display =
         snap.bellAlert || snap.valdirPopup || snap.unreadMessages > 0 ? 'block' : 'none';
     }
+
+    const nvOn = Boolean(snap.nightVisionOn && snap.view !== 'P' && snap.phoneBattery > 0);
+    q('#btn-nvg')?.classList.toggle('nvg-on', nvOn);
+    q('#hud-nvg-reticle')?.classList.toggle('active', nvOn);
 
     q('#btn-flash')?.classList.toggle('lit', snap.flashlightOn && snap.view !== 'P');
     q('#btn-door')?.classList.toggle('engaged', snap.doorClosed);

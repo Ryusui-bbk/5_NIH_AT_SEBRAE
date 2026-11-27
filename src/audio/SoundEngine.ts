@@ -384,6 +384,34 @@ export class SoundEngine {
     this.playTone({ freq: 195, endFreq: 68, duration: 0.38, type: 'sine', volume: 0.24 });
   }
 
+  playNightVisionToggle(on: boolean): void {
+    this.playNoiseBurst({
+      duration: 0.035,
+      filterFreq: on ? 2600 : 1600,
+      q: 1.8,
+      volume: 0.14,
+    });
+    if (on) {
+      // Apito agudo clássico de capacitor óptico carregando (estilo filmadora Outlast!)
+      this.playTone({
+        freq: 1750,
+        endFreq: 4850,
+        duration: 0.42,
+        type: 'sine',
+        volume: 0.068,
+        delay: 0.02,
+      });
+    } else {
+      this.playTone({
+        freq: 3400,
+        endFreq: 880,
+        duration: 0.22,
+        type: 'sine',
+        volume: 0.055,
+      });
+    }
+  }
+
   playThunder(): void {
     this.playNoiseBurst({
       duration: 1.4,

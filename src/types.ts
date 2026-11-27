@@ -126,6 +126,7 @@ export interface GameSnapshot {
   clockText: string;
   view: ViewDirection;
   flashlightOn: boolean;
+  nightVisionOn: boolean;
   doorClosed: boolean;
   doorLockCooldown: number;
   doorHoldEnergy: number; // 0..100

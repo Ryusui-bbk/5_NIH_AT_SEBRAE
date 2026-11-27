@@ -1874,3 +1874,247 @@ export class DynamicWallClock {
     this.texture.needsUpdate = true;
   }
 }
+
+// ==================== OUTLAST 2 SCHOOL CORRIDOR & WET FLOOR GENERATORS ====================
+
+export interface WetFloorPBRSet extends PBRTextureSet {
+  alphaMap: THREE.DataTexture;
+}
+
+/**
+ * Parede institucional bicolor estilo Outlast 2 (St. Sybil School):
+ * Parte superior em bloco/reboco cinza-ciano gelado com escorridos de infiltração do forro,
+ * friso divisório em relevo e barra inferior em esmalte azul-ardósia escuro descascado.
+ */
+export function createOutlastCorridorWallPBR(aniso = 4): PBRTextureSet {
+  const w = 512;
+  const h = 512;
+  const [c, ctx] = makeCanvas(w, h);
+  const img = ctx.createImageData(w, h);
+  const px = img.data;
+  const height = new Float32Array(w * h);
+  const rough = new Float32Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    const v = y / h; // 0 = topo junto ao forro, 1 = piso
+    const leak = Math.pow(Math.max(0, 1 - v * 2.6), 1.8);
+    const isRail = v > 0.545 && v < 0.572;
+    const isLower = v >= 0.572;
+    const isBaseboard = v > 0.945;
+
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const idx = y * w + x;
+
+      const macro = fbmTile(u, v, 4, 4, 4, 911);
+      const pores = fbmTile(u, v, 32, 32, 3, 937);
+      const drip = fbmTile(u * 2.5, v * 0.4, 8, 2, 3, 953);
+
+      // Juntas sutis de blocos de alvenaria sob a tinta institucional
+      const bx = (u * 8) % 1;
+      const row = Math.floor(v * 16);
+      const bxOff = ((u * 8 + (row % 2) * 0.5) % 1);
+      const by = (v * 16) % 1;
+      const mortar =
+        !isBaseboard && (bxOff < 0.025 || bxOff > 0.975 || by < 0.045 || by > 0.955) ? 1 : 0;
+
+      let r = 104;
+      let g = 114;
+      let b = 120;
+      let hVal = 0.52 + (pores - 0.5) * 0.16 - mortar * 0.16;
+      let rVal = 0.86;
+
+      if (isBaseboard) {
+        r = 18;
+        g = 21;
+        b = 25;
+        hVal = 0.64 + (pores - 0.5) * 0.05;
+        rVal = 0.52;
+      } else if (isRail) {
+        r = 44;
+        g = 54;
+        b = 64;
+        hVal = 0.78;
+        rVal = 0.46;
+      } else if (isLower) {
+        // Barra esmalte azul-ardósia escuro com lascas de desgaste
+        const chip = macro * 0.6 + pores * 0.4 > 0.77;
+        if (chip) {
+          r = 76;
+          g = 82;
+          b = 86;
+          hVal -= 0.14;
+          rVal = 0.92;
+        } else {
+          r = 34 + (macro - 0.5) * 14;
+          g = 45 + (macro - 0.5) * 16;
+          b = 56 + (macro - 0.5) * 18;
+          rVal = 0.56 + (pores - 0.5) * 0.18;
+        }
+      } else {
+        // Parte superior cinza-fria manchada de umidade
+        const stain = leak * (0.45 + drip * 0.75);
+        r = (112 + (macro - 0.5) * 26) * (1 - stain * 0.48) - mortar * 12;
+        g = (121 + (macro - 0.5) * 26) * (1 - stain * 0.45) - mortar * 12;
+        b = (126 + (macro - 0.5) * 24) * (1 - stain * 0.40) - mortar * 10;
+        rVal = 0.88 - stain * 0.22;
+      }
+
+      height[idx] = Math.max(0, Math.min(1, hVal));
+      rough[idx] = Math.max(0.15, Math.min(1, rVal));
+
+      const p = idx * 4;
+      px[p] = clampByte(r);
+      px[p + 1] = clampByte(g);
+      px[p + 2] = clampByte(b);
+      px[p + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+  const map = new THREE.CanvasTexture(c);
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.ClampToEdgeWrapping;
+  map.colorSpace = THREE.SRGBColorSpace;
+
+  const normalMap = heightToNormalTexture(height, w, h, 2.4, THREE.RepeatWrapping, THREE.ClampToEdgeWrapping);
+  const roughnessMap = scalarToRoughnessTexture(rough, w, h, THREE.RepeatWrapping, THREE.ClampToEdgeWrapping);
+
+  return applyAnisotropy({ map, normalMap, roughnessMap }, aniso, 4, 1);
+}
+
+/**
+ * Piso escolar escuro encerado/molhado estilo Outlast 2:
+ * Ladrilhos vinílicos cinza-chumbo com poças de reflexo especular e alphaMap
+ * para mesclar com o espelho planar (THREE.Reflector) abaixo do piso!
+ */
+export function createOutlastLinoleumFloorPBR(
+  aniso = 4,
+  repeatX = 6,
+  repeatY = 6
+): WetFloorPBRSet {
+  const w = 512;
+  const h = 512;
+  const [c, ctx] = makeCanvas(w, h);
+  const img = ctx.createImageData(w, h);
+  const px = img.data;
+  const height = new Float32Array(w * h);
+  const rough = new Float32Array(w * h);
+  const alphaData = new Uint8Array(w * h * 4);
+
+  for (let y = 0; y < h; y++) {
+    const v = y / h;
+    for (let x = 0; x < w; x++) {
+      const u = x / w;
+      const idx = y * w + x;
+
+      // Ladrilhos 4x4 por tile
+      const tx = Math.floor(u * 4);
+      const ty = Math.floor(v * 4);
+      const fu = (u * 4) % 1;
+      const fv = (v * 4) % 1;
+      const seam = fu < 0.022 || fu > 0.978 || fv < 0.022 || fv > 0.978;
+
+      const checker = (tx + ty) % 2 === 0 ? 1.0 : 0.91;
+      const streak = fbmTile(u * 0.8, v * 2.2, 4, 8, 4, 1201);
+      const puddleNoise = fbmTile(u, v, 3, 3, 4, 1249);
+      const micro = fbmTile(u, v, 28, 28, 2, 1289);
+
+      // Áreas enceradas/úmidas deixam passar mais do espelho planar abaixo (alpha menor = mais reflexo!)
+      const wetness = Math.max(0, Math.min(1, (puddleNoise - 0.34) * 1.85));
+
+      let base = (36 + streak * 16 + (micro - 0.5) * 8) * checker;
+      if (seam) base *= 0.52;
+
+      const r = base * (0.90 - wetness * 0.16);
+      const g = base * (0.97 - wetness * 0.12);
+      const b = base * (1.04 - wetness * 0.08);
+
+      height[idx] = seam ? 0.28 : 0.54 + (micro - 0.5) * 0.08 * (1 - wetness * 0.7);
+      rough[idx] = seam ? 0.88 : Math.max(0.06, 0.44 - wetness * 0.35 + (streak - 0.5) * 0.12);
+
+      // Opacidade entre 0.70 (poça espelhada) e 0.91 (vinil fosco gasto)
+      const alphaVal = clampByte((0.90 - wetness * 0.22) * 255);
+      const p = idx * 4;
+      px[p] = clampByte(r);
+      px[p + 1] = clampByte(g);
+      px[p + 2] = clampByte(b);
+      px[p + 3] = 255;
+
+      alphaData[p] = alphaVal;
+      alphaData[p + 1] = alphaVal;
+      alphaData[p + 2] = alphaVal;
+      alphaData[p + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+  const map = new THREE.CanvasTexture(c);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.colorSpace = THREE.SRGBColorSpace;
+
+  const normalMap = heightToNormalTexture(height, w, h, 1.5);
+  const roughnessMap = scalarToRoughnessTexture(rough, w, h);
+
+  const alphaMap = new THREE.DataTexture(alphaData, w, h, THREE.RGBAFormat);
+  alphaMap.wrapS = alphaMap.wrapT = THREE.RepeatWrapping;
+  alphaMap.colorSpace = THREE.NoColorSpace;
+  alphaMap.magFilter = THREE.LinearFilter;
+  alphaMap.minFilter = THREE.LinearMipmapLinearFilter;
+  alphaMap.generateMipmaps = true;
+  alphaMap.anisotropy = aniso;
+  alphaMap.repeat.set(repeatX, repeatY);
+  alphaMap.needsUpdate = true;
+
+  const baseSet = applyAnisotropy({ map, normalMap, roughnessMap }, aniso, repeatX, repeatY);
+  return { ...baseSet, alphaMap };
+}
+
+/**
+ * Cartaz institucional escolar manchado de umidade para o corredor.
+ */
+export function createPeelingPosterTexture(variant = 0): THREE.CanvasTexture {
+  const [c, ctx] = makeCanvas(256, 340);
+  ctx.fillStyle = '#c8c3b4';
+  ctx.fillRect(0, 0, 256, 340);
+
+  // Manchas escuras de mofo e infiltração
+  for (let i = 0; i < 28; i++) {
+    const rx = ((i * 73 + variant * 41) % 240) + 8;
+    const ry = ((i * 59 + variant * 29) % 320) + 10;
+    const rad = 18 + (i % 5) * 14;
+    const g = ctx.createRadialGradient(rx, ry, 2, rx, ry, rad);
+    g.addColorStop(0, 'rgba(32, 36, 34, 0.24)');
+    g.addColorStop(1, 'rgba(32, 36, 34, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(rx - rad, ry - rad, rad * 2, rad * 2);
+  }
+
+  ctx.strokeStyle = '#22282c';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(14, 14, 228, 312);
+
+  ctx.fillStyle = variant % 2 === 0 ? '#1d2b36' : '#58181c';
+  ctx.fillRect(22, 22, 212, 54);
+
+  ctx.fillStyle = '#d8d4c8';
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(variant % 2 === 0 ? 'AVISO ESCOLAR' : 'ROTA DE FUGA', 128, 56);
+
+  ctx.fillStyle = '#242729';
+  ctx.font = 'bold 15px sans-serif';
+  const lines =
+    variant % 2 === 0
+      ? ['SILÊNCIO ABSOLUTO', 'APÓS AS 23H00', '', 'PROIBIDO PERMANECER', 'NOS CORREDORES', 'SEM AUTORIZAÇÃO']
+      : ['BLOCO B — SALA 04', 'PORTÕES MAGNÉTICOS', 'TRAVADOS ÀS 23H59', '', 'EM CASO DE PÂNICO', 'CONTATE A SECRETARIA'];
+
+  lines.forEach((ln, idx) => {
+    ctx.fillText(ln, 128, 118 + idx * 28);
+  });
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+

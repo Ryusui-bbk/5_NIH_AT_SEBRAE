@@ -34,6 +34,7 @@ export class GameEngine {
   private elapsedSeconds = 0;
   private view: ViewDirection = 'C';
   private flashlightOn = false;
+  private nightVisionOn = false;
 
   private doorClosed = false;
   private doorHoldEnergy = 100;
@@ -84,6 +85,7 @@ export class GameEngine {
     this.elapsedSeconds = 0;
     this.view = 'C';
     this.flashlightOn = false;
+    this.nightVisionOn = false;
 
     this.doorClosed = false;
     this.doorHoldEnergy = 100;
@@ -192,6 +194,20 @@ export class GameEngine {
     }
     this.flashlightOn = !this.flashlightOn;
     this.sound.playFlashlightClick(this.flashlightOn);
+  }
+
+  toggleNightVision(): void {
+    if (!this.running || this.paused || this.dying) return;
+    if (this.view === 'P') {
+      this.setHint('Guarde o celular antes de ativar a Visão Noturna IR!', 2.2);
+      return;
+    }
+    if (!this.nightVisionOn && this.phoneBattery <= 2) {
+      this.setHint('Bateria insuficiente para o sensor Infravermelho!', 2.2);
+      return;
+    }
+    this.nightVisionOn = !this.nightVisionOn;
+    this.sound.playNightVisionToggle(this.nightVisionOn);
   }
 
   toggleDoorLock(): void {
@@ -438,12 +454,19 @@ export class GameEngine {
       this.setHint('Sala abafada! Você precisou abrir a persiana para respirar.', 3.2);
     }
 
-    // Bateria do celular & Powerbank da carteira
+    // Bateria do celular & Powerbank da carteira (+ sensor IR estilo Outlast)
     const phoneOpen = this.view === 'P';
     if (phoneOpen && this.phoneBattery > 0) {
       const drainRate =
         (1.18 + (cftvOpen ? 0.42 : 0)) * this.nightConfig.batteryDrainMultiplier;
       this.phoneBattery = Math.max(0, this.phoneBattery - dt * drainRate);
+    } else if (!phoneOpen && this.nightVisionOn) {
+      this.phoneBattery = Math.max(0, this.phoneBattery - dt * 0.36);
+      if (this.phoneBattery <= 0.5) {
+        this.nightVisionOn = false;
+        this.sound.playNightVisionToggle(false);
+        this.setHint('Visão Noturna IR desligada — recarregando bateria na carteira.', 2.6);
+      }
     } else if (!phoneOpen) {
       if (this.powerbankReserve > 0 && this.phoneBattery < 100) {
         const charge = dt * 2.7;
@@ -764,6 +787,7 @@ export class GameEngine {
       clockText,
       view: this.view,
       flashlightOn: this.flashlightOn,
+      nightVisionOn: this.nightVisionOn,
       doorClosed: this.doorClosed,
       doorLockCooldown: this.doorLockCooldown,
       doorHoldEnergy: this.doorHoldEnergy,
