@@ -1034,115 +1034,46 @@ canvas {
   display: none;
 }
 
-/* ==================== CELULAR EM 1ª PESSOA COM MÃO DIREITA FOTORREALISTA ==================== */
+/* ==================== VIEWMODEL 3D WEBGL DO CELULAR + MÃO DIREITA ARTICULADA ==================== */
+#phone-3d-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 14;
+  pointer-events: none;
+  display: none;
+}
+
+/* Painel OLED interativo projetado via matrix3d exatamente na face do chassi 3D */
 #phone-device {
-  --ph-rx: 2.6deg;
-  --ph-ry: -2.4deg;
-  --ph-rz: -0.8deg;
-  --ph-ty: 0px;
   --ph-glare: 38%;
 
   position: fixed;
-  right: clamp(-18px, 3vw, 56px);
-  bottom: -18px;
-  height: min(695px, 85vh);
-  aspect-ratio: 864 / 900;
-  width: auto;
-  z-index: 13;
+  left: 0;
+  top: 0;
+  width: 300px;
+  height: 562px;
+  transform-origin: 0 0;
+  z-index: 12;
   display: none;
-  overflow: visible;
+  flex-direction: column;
+  overflow: hidden;
   pointer-events: none;
-  opacity: 0;
-  transform: translateY(108%) rotateZ(9deg);
-  transform-origin: 78% 100%;
-  transition:
-    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.2s ease;
+  will-change: transform, opacity;
   font-family: var(--font-sans);
 }
 
-#phone-device.phone-mounted {
-  display: block;
-}
-
-#phone-device.phone-raised {
-  opacity: 1;
-  transform: translateY(0) rotateZ(0deg);
-}
-
-@media (max-width: 780px) {
-  #phone-device {
-    right: auto;
-    left: 62%;
-    height: min(630px, 80vh);
-    transform: translateX(-50%) translateY(108%) rotateZ(8deg);
-  }
-  #phone-device.phone-raised {
-    transform: translateX(-50%) translateY(0) rotateZ(0deg);
-  }
-}
-
-.ph-rig-3d {
+.ph-oled-glass {
   position: relative;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  transform-style: preserve-3d;
-  transform-origin: 72% 95%;
-  transform:
-    perspective(1050px)
-    translateY(var(--ph-ty))
-    rotateX(var(--ph-rx))
-    rotateY(var(--ph-ry))
-    rotateZ(var(--ph-rz));
-  will-change: transform;
-}
-
-/* Camada fotorrealista da mão direita + chassi de alumínio escovado */
-.ph-photo-hand-rig {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  z-index: 3;
-  pointer-events: none;
-  user-select: none;
-  filter:
-    brightness(0.94)
-    contrast(1.04)
-    drop-shadow(-16px 22px 42px rgba(0, 0, 0, 0.94));
-}
-
-.ph-rig-3d.ph-screen-off .ph-photo-hand-rig {
-  filter:
-    brightness(0.64)
-    saturate(0.86)
-    drop-shadow(-16px 22px 42px rgba(0, 0, 0, 0.96));
-}
-
-/* Vidro OLED calibrado milimetricamente no recorte interno do bezel metálico */
-.ph-oled-glass {
-  position: absolute;
-  left: 12.413%;
-  top: 7.561%;
-  width: 48.091%;
-  height: 78.989%;
-  z-index: 2;
-  pointer-events: none;
   background: radial-gradient(120% 90% at 50% 10%, #10151f 0%, #07090d 70%, #040508 100%);
-  border-radius: 6px;
-  box-shadow:
-    0 0 46px rgba(72, 134, 214, 0.2),
-    inset 0 10px 24px rgba(0, 0, 0, 0.65);
+  box-shadow: inset 0 10px 24px rgba(0, 0, 0, 0.65);
   padding: 8px 9px 8px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-#phone-device.phone-raised .ph-oled-glass {
-  pointer-events: auto;
 }
 
 .ph-screen-crack {
@@ -1154,7 +1085,6 @@ canvas {
   z-index: 6;
 }
 
-/* Reflexo especular oblíquo no vidro temperado reagindo à inclinação da mão */
 .ph-glass-glare {
   position: absolute;
   inset: -20%;

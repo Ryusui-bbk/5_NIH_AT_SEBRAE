@@ -264,6 +264,13 @@ export class ClassroomScene {
     return this.mouseNDC;
   }
 
+  getPhoneRoomLightState(): { roomFlickerIntensity: number; lightningIntensity: number } {
+    return {
+      roomFlickerIntensity: this.mainLamp ? this.mainLamp.intensity : 1,
+      lightningIntensity: this.lightningLight ? this.lightningLight.intensity : 0,
+    };
+  }
+
   /**
    * Piso espelhado úmido/encerado com THREE.Reflector sob camada PBR semitransparente de poças!
    * Recria fielmente o reflexo invertido das luminárias, extintor e silhuetas no chão do Outlast 2.
@@ -1724,13 +1731,11 @@ export class ClassroomScene {
     );
     const targetDoorAngle = snap.doorClosed
       ? 0
-      : leftMaxStage >= 3
-        ? -1.36
-        : leftMaxStage === 2
-          ? -0.92
-          : -0.78;
+      : leftMaxStage >= 2
+        ? -1.52
+        : -0.82;
     this.doorPivot.rotation.y +=
-      (targetDoorAngle - this.doorPivot.rotation.y) * Math.min(1, safeDt * 6);
+      (targetDoorAngle - this.doorPivot.rotation.y) * Math.min(1, safeDt * 7);
     this.doorLockLed.color.setHex(
       snap.doorClosed ? 0xc8232c : snap.doorLockCooldown > 0 ? 0xd49b42 : 0x59b377
     );
@@ -1741,11 +1746,12 @@ export class ClassroomScene {
         (id) => snap.teachers[id].stage
       )
     );
-    const paneSwing = rightMaxStage >= 3 ? 1.05 : rightMaxStage === 2 ? 0.38 : 0.1;
+    // Folhas da janela abrem PARA FORA (pátio) para jamais atravessarem o personagem ou a persiana!
+    const paneSwing = rightMaxStage >= 3 ? 1.48 : rightMaxStage === 2 ? 0.78 : 0.12;
     this.windowLeftPane.rotation.y +=
-      (-paneSwing - this.windowLeftPane.rotation.y) * Math.min(1, safeDt * 5);
+      (paneSwing - this.windowLeftPane.rotation.y) * Math.min(1, safeDt * 6);
     this.windowRightPane.rotation.y +=
-      (paneSwing - this.windowRightPane.rotation.y) * Math.min(1, safeDt * 5);
+      (-paneSwing - this.windowRightPane.rotation.y) * Math.min(1, safeDt * 6);
 
     const targetBlindScale = snap.blindsClosed ? 1.0 : 0.05;
     this.blindsGroup.scale.y +=
@@ -1792,7 +1798,8 @@ export class ClassroomScene {
       }
 
       if (id === 'celia') {
-        const pose: TeacherPose = st.stage >= 3 ? 'doorBreach' : 'hidden';
+        const pose: TeacherPose =
+          st.stage >= 3 ? (snap.doorClosed ? 'doorPeek' : 'doorBreach') : 'hidden';
         rig.updatePose({
           dt: safeDt,
           pose,

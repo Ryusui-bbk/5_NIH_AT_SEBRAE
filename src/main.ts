@@ -5,6 +5,7 @@ import { TEACHER_ORDER } from './config/teachers';
 import { GameEngine } from './game/GameEngine';
 import { PhoneSystem } from './game/PhoneSystem';
 import { ClassroomScene } from './scene/ClassroomScene';
+import { FirstPersonPhone3D } from './scene/FirstPersonPhone3D';
 import { StorageManager } from './state/storage';
 import { GameSnapshot, NightConfig, TeacherId, ViewDirection } from './types';
 import { UIManager } from './ui/UIManager';
@@ -64,6 +65,8 @@ for (const id of TEACHER_ORDER) {
   classroom.refreshTeacherAppearance(id, disp.name, disp.photoDataUrl);
 }
 
+const phone3D = new FirstPersonPhone3D(appEl, phoneEl);
+
 const phoneSystem = new PhoneSystem({
   container: phoneEl,
   sound,
@@ -102,7 +105,7 @@ const engine = new GameEngine({
   storage,
   onJumpscare: (teacherId: TeacherId, done: () => void) => {
     inJumpscare = true;
-    phoneEl.classList.remove('phone-mounted', 'phone-raised');
+    phone3D.hideImmediately();
     hudRoot.style.display = 'none';
     ui.triggerRedFlash(0.85);
     classroom.triggerJumpscare(teacherId);
@@ -114,7 +117,7 @@ const engine = new GameEngine({
   },
   onGameEnd: (payload) => {
     latestSnapshot = null;
-    phoneEl.classList.remove('phone-mounted', 'phone-raised');
+    phone3D.hideImmediately();
     ui.showEndScreen(payload, activeNightConfig);
   },
 });
@@ -177,6 +180,7 @@ const ui = new UIManager({
       const nextPaused = !engine.isPaused();
       engine.setPaused(nextPaused);
       if (nextPaused) {
+        phone3D.hideImmediately();
         ui.showPauseModal();
       } else {
         ui.hideOverlay();
@@ -185,6 +189,7 @@ const ui = new UIManager({
     onQuitToMenu: () => {
       engine.stop();
       latestSnapshot = null;
+      phone3D.hideImmediately();
       classroom.clearJumpscare();
       ui.showMainMenu('home');
     },
@@ -209,8 +214,12 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       const nextPaused = !engine.isPaused();
       engine.setPaused(nextPaused);
-      if (nextPaused) ui.showPauseModal();
-      else ui.hideOverlay();
+      if (nextPaused) {
+        phone3D.hideImmediately();
+        ui.showPauseModal();
+      } else {
+        ui.hideOverlay();
+      }
     }
     return;
   }
@@ -288,6 +297,12 @@ function animate(now: number): void {
   }
 
   classroom.update(dt, inJumpscare ? engine.getSnapshot() : latestSnapshot);
+  phone3D.update(
+    dt,
+    engine.isRunning() && !engine.isPaused() && !inJumpscare ? latestSnapshot : null,
+    classroom.getMouseNDC(),
+    classroom.getPhoneRoomLightState()
+  );
   requestAnimationFrame(animate);
 }
 
