@@ -128,6 +128,10 @@ export class TeacherRig {
     rightArm?: THREE.Object3D;
     rightForeArm?: THREE.Object3D;
     rightHand?: THREE.Object3D;
+    leftUpLeg?: THREE.Object3D;
+    leftLeg?: THREE.Object3D;
+    rightUpLeg?: THREE.Object3D;
+    rightLeg?: THREE.Object3D;
     leftEye?: THREE.Object3D;
     rightEye?: THREE.Object3D;
   } = {};
@@ -157,6 +161,7 @@ export class TeacherRig {
   private currentYaw = Math.PI / 2;
   private peekWeight = 0;
   private flinchWeight = 0;
+  private vaultWeight = 0;
   private mouthOpenVal = 0;
   private propLight: THREE.PointLight | null = null;
 
@@ -228,6 +233,10 @@ export class TeacherRig {
       else if (obj.name === 'RightArm') this.bones.rightArm = obj;
       else if (obj.name === 'RightForeArm') this.bones.rightForeArm = obj;
       else if (obj.name === 'RightHand') this.bones.rightHand = obj;
+      else if (obj.name === 'LeftUpLeg') this.bones.leftUpLeg = obj;
+      else if (obj.name === 'LeftLeg') this.bones.leftLeg = obj;
+      else if (obj.name === 'RightUpLeg') this.bones.rightUpLeg = obj;
+      else if (obj.name === 'RightLeg') this.bones.rightLeg = obj;
       else if (obj.name === 'LeftEye') this.bones.leftEye = obj;
       else if (obj.name === 'RightEye') this.bones.rightEye = obj;
 
@@ -953,37 +962,33 @@ export class TeacherRig {
     const dstX = this.finalTargetPos.x;
     const dstZ = this.finalTargetPos.z;
 
-    // 1. Cruzamento da Parede Esquerda (X = -5.0) — Vão seguro da porta: Z = -0.52
+    // 1. Cruzamento da Parede Esquerda (X = -5.0) — Eixo livre da porta longe da dobradiça: Z = -0.62
     const crossingLeftWall =
       (curX < -5.0 && dstX > -5.0) || (curX > -5.0 && dstX < -5.0);
 
     if (crossingLeftWall) {
-      const doorPortalZ = -0.52;
+      const doorPortalZ = -0.62;
       if (doorClosed) {
         if (curX < -5.0) {
-          // Bloqueado do lado de fora da porta trancada!
-          this.steerTargetPos.set(-5.72, 0, doorPortalZ);
+          this.steerTargetPos.set(-6.08, 0, doorPortalZ);
           return { blockedAtBarrier: true };
         }
-        // Se já estava dentro da sala quando foi repelido com a porta trancada, recua até perto da porta e dissipa nas sombras
-        this.steerTargetPos.set(-4.28, 0, doorPortalZ);
-        return { blockedAtBarrier: Math.hypot(curX - -4.28, curZ - doorPortalZ) < 0.14 };
+        this.steerTargetPos.set(-3.92, 0, doorPortalZ);
+        return { blockedAtBarrier: true };
       }
 
-      // Alinha primeiro com o centro do portal antes de cruzar o plano X = -5.0!
-      if (Math.abs(curZ - doorPortalZ) > 0.14) {
-        const preX = curX < -5.0 ? Math.min(curX, -5.68) : Math.max(curX, -4.32);
+      if (Math.abs(curZ - doorPortalZ) > 0.12) {
+        const preX = curX < -5.0 ? Math.min(curX, -6.04) : Math.max(curX, -3.96);
         this.steerTargetPos.set(preX, 0, doorPortalZ);
         return { blockedAtBarrier: false };
       }
 
-      // Atravessa em linha reta pelo eixo Z = -0.52 até sair completamente do batente!
-      if (dstX > -5.0 && curX < -4.32) {
-        this.steerTargetPos.set(-4.28, 0, doorPortalZ);
+      if (dstX > -5.0 && curX < -3.96) {
+        this.steerTargetPos.set(-3.92, 0, doorPortalZ);
         return { blockedAtBarrier: false };
       }
-      if (dstX < -5.0 && curX > -5.68) {
-        this.steerTargetPos.set(-5.72, 0, doorPortalZ);
+      if (dstX < -5.0 && curX > -6.04) {
+        this.steerTargetPos.set(-6.08, 0, doorPortalZ);
         return { blockedAtBarrier: false };
       }
     }
@@ -996,25 +1001,25 @@ export class TeacherRig {
       const winPortalZ = -0.35;
       if (blindsClosed) {
         if (curX > 5.0) {
-          this.steerTargetPos.set(5.74, -0.05, winPortalZ);
+          this.steerTargetPos.set(6.18, -0.05, winPortalZ);
           return { blockedAtBarrier: true };
         }
-        this.steerTargetPos.set(4.28, 0, winPortalZ);
-        return { blockedAtBarrier: Math.hypot(curX - 4.28, curZ - winPortalZ) < 0.14 };
+        this.steerTargetPos.set(3.88, 0, winPortalZ);
+        return { blockedAtBarrier: true };
       }
 
-      if (Math.abs(curZ - winPortalZ) > 0.15) {
-        const preX = curX > 5.0 ? Math.max(curX, 5.72) : Math.min(curX, 4.28);
+      if (Math.abs(curZ - winPortalZ) > 0.14) {
+        const preX = curX > 5.0 ? Math.max(curX, 6.14) : Math.min(curX, 3.88);
         this.steerTargetPos.set(preX, curX > 5.0 ? -0.05 : 0, winPortalZ);
         return { blockedAtBarrier: false };
       }
 
-      if (dstX < 5.0 && curX > 4.28) {
-        this.steerTargetPos.set(4.22, 0, winPortalZ);
+      if (dstX < 5.0 && curX > 3.88) {
+        this.steerTargetPos.set(3.82, 0, winPortalZ);
         return { blockedAtBarrier: false };
       }
-      if (dstX > 5.0 && curX < 5.72) {
-        this.steerTargetPos.set(5.76, -0.05, winPortalZ);
+      if (dstX > 5.0 && curX < 6.14) {
+        this.steerTargetPos.set(6.18, -0.05, winPortalZ);
         return { blockedAtBarrier: false };
       }
     }
@@ -1024,42 +1029,41 @@ export class TeacherRig {
   }
 
   /**
-   * Solver geométrico de cápsula (raio 0.54m cobrindo ombros largos e mortalha):
-   * Impede qualquer intersecção com paredes da sala, corredor, porta fechada, peitoril ou mesa!
+   * Solver geométrico completo com margem real de braços estendidos + adereços (R = 0.98m)
+   * e platô de escalada agachada pelo vão exato da janela (Y = 1.02m..2.46m)!
    */
   private resolveWallCollisions(
     prevX: number,
     doorClosed: boolean,
     blindsClosed: boolean
   ): void {
-    const R = 0.56; // Raio seguro incluindo manto esfarrapado
+    const R = 0.98;
 
-    // Limites Z do Corredor Esquerdo (paredes em Z = -2.25 e +1.45, armários em Z = -1.77)
-    if (this.worldPos.x < -4.95) {
-      this.worldPos.z = THREE.MathUtils.clamp(this.worldPos.z, -1.42, 0.85);
-      this.worldPos.x = Math.max(-20.2, this.worldPos.x);
+    // Limites Z do Corredor Esquerdo (longe dos armários Z = -1.72 e da parede sul Z = +1.45)
+    if (this.worldPos.x < -5.0) {
+      this.worldPos.z = THREE.MathUtils.clamp(this.worldPos.z, -1.16, 0.56);
+      this.worldPos.x = Math.max(-20.0, this.worldPos.x);
     }
 
-    // Limites Z internos da Sala 04 (paredes em Z = -5.0 e +3.4)
-    if (this.worldPos.x >= -4.95 && this.worldPos.x <= 4.95) {
-      this.worldPos.z = THREE.MathUtils.clamp(this.worldPos.z, -4.38, 2.75);
+    // Limites Z internos da Sala 04 (longe das paredes Z = -5.0 e +3.4)
+    if (this.worldPos.x >= -5.0 && this.worldPos.x <= 5.0) {
+      this.worldPos.z = THREE.MathUtils.clamp(this.worldPos.z, -4.02, 2.38);
 
       // Desvia da mesa do professor (-1.9, -3.95)
-      if (this.worldPos.x < -0.95 && this.worldPos.z < -3.25) {
-        this.worldPos.x = -0.95;
+      if (this.worldPos.x < -0.85 && this.worldPos.z < -3.15) {
+        this.worldPos.x = -0.85;
       }
     }
 
     // Limites do Pátio Direito
-    if (this.worldPos.x > 4.95) {
-      this.worldPos.z = THREE.MathUtils.clamp(this.worldPos.z, -3.5, 2.2);
+    if (this.worldPos.x > 5.0) {
+      this.worldPos.z = THREE.MathUtils.clamp(this.worldPos.z, -3.2, 2.0);
       this.worldPos.x = Math.min(13.1, this.worldPos.x);
     }
 
     // Barreira da Parede Esquerda (X = -5.0, espessura -5.08..-4.92)
-    // Só permite estar na faixa [-5.64, -4.36] se Z estiver alinhado ao vão da porta [-0.72, -0.28] E porta aberta!
     const inDoorChannel =
-      !doorClosed && this.worldPos.z >= -0.72 && this.worldPos.z <= -0.28;
+      !doorClosed && this.worldPos.z >= -0.82 && this.worldPos.z <= -0.4;
     if (!inDoorChannel && this.worldPos.x > -5.08 - R && this.worldPos.x < -4.92 + R) {
       if (prevX <= -5.0) {
         this.worldPos.x = -5.08 - R;
@@ -1070,7 +1074,7 @@ export class TeacherRig {
 
     // Barreira da Parede Direita / Janela (X = +5.0, espessura +4.92..+5.08)
     const inWindowChannel =
-      !blindsClosed && this.worldPos.z >= -0.88 && this.worldPos.z <= 0.18;
+      !blindsClosed && this.worldPos.z >= -0.78 && this.worldPos.z <= 0.08;
     if (!inWindowChannel && this.worldPos.x > 4.92 - R && this.worldPos.x < 5.08 + R) {
       if (prevX >= 5.0) {
         this.worldPos.x = 5.08 + R;
@@ -1079,16 +1083,22 @@ export class TeacherRig {
       }
     }
 
-    // Quando cruza a janela aberta (X entre 4.28 e 5.72), salta/escala sobre o peitoril de alvenaria (Y = 1.02m)
-    // para JAMAIS atravessar a parede baixa abaixo da janela!
-    if (inWindowChannel && this.worldPos.x > 4.28 && this.worldPos.x < 5.72) {
-      const t = (this.worldPos.x - 4.28) / (5.72 - 4.28);
-      const vaultHeight = Math.sin(t * Math.PI) * 1.04;
-      this.worldPos.y = Math.max(this.worldPos.y, vaultHeight);
-    } else if (this.worldPos.x <= 4.28) {
-      this.worldPos.y = 0;
-    } else if (this.worldPos.x >= 5.72) {
-      this.worldPos.y = -0.05;
+    // Platô de travessia agachada da janela (Y = 1.08m constante em [4.22, 5.78] + rampas suaves):
+    // Mantém pés e manto ACIMA da parede de alvenaria (1.02m) enquanto o tronco agacha ABAIXO da verga (2.46m)!
+    if (inWindowChannel && this.worldPos.x > 3.82 && this.worldPos.x < 6.18) {
+      let factor = 1.0;
+      if (this.worldPos.x < 4.22) {
+        const u = (this.worldPos.x - 3.82) / (4.22 - 3.82);
+        factor = 0.5 - 0.5 * Math.cos(u * Math.PI);
+      } else if (this.worldPos.x > 5.78) {
+        const u = (6.18 - this.worldPos.x) / (6.18 - 5.78);
+        factor = 0.5 - 0.5 * Math.cos(u * Math.PI);
+      }
+      this.worldPos.y = -0.05 * (1 - factor) + 1.08 * factor;
+      this.vaultWeight = factor;
+    } else {
+      this.vaultWeight = 0;
+      this.worldPos.y = this.worldPos.x >= 5.0 ? -0.05 : 0;
     }
   }
 
@@ -1123,6 +1133,8 @@ export class TeacherRig {
       this.currentPose = 'jumpscare';
       this.isRetreating = false;
       this.root.visible = true;
+      this.vaultWeight = 0;
+      if (this.modelRoot) this.modelRoot.position.y = 0;
       this.worldPos.set(0, -0.14, 0.22);
       this.root.position.copy(this.worldPos);
       this.root.rotation.set(0, 0, 0);
@@ -1176,45 +1188,76 @@ export class TeacherRig {
           this.finalTargetPos.set(
             -12.4 + Math.sin(time * 0.55) * 0.65,
             0,
-            -0.52 + Math.cos(time * 0.42) * 0.26
+            -0.58 + Math.cos(time * 0.42) * 0.22
           );
         } else if (pose === 'doorPeek') {
-          // Posição 100% no corredor a 66cm da parede/porta, visível de frente pelo vão da porta!
-          this.finalTargetPos.set(-5.74, 0, -0.58);
+          // 1.08m fora da parede/porta para que braços, capuz e adereços JAMAIS atravessem a porta!
+          this.finalTargetPos.set(-6.08, 0, -0.62);
+          if (doorClosed && this.worldPos.x > -6.06) {
+            this.worldPos.x = -6.08;
+          }
         } else {
-          // Dentro da Sala 04, livre das paredes e carteiras
-          this.finalTargetPos.set(-3.15, 0, -0.45);
+          // Corredor interno livre entre a porta aberta e a fileira esquerda de carteiras
+          this.finalTargetPos.set(-3.58, 0, -0.58);
         }
       } else if (pose === 'courtyardFar' || pose === 'windowPeek' || pose === 'windowBreach') {
         if (wasCompletelyHidden || this.lastActiveSide !== 'R') {
-          this.worldPos.set(pose === 'courtyardFar' ? 12.4 : 8.6, -0.05, -0.42);
+          this.worldPos.set(pose === 'courtyardFar' ? 12.4 : 8.8, -0.05, -0.35);
           this.currentYaw = -Math.PI / 2;
         }
         this.lastActiveSide = 'R';
 
         if (pose === 'courtyardFar') {
           this.finalTargetPos.set(
-            8.85 + Math.sin(time * 0.48) * 0.42,
+            8.95 + Math.sin(time * 0.48) * 0.42,
             -0.05,
-            -0.65 + Math.cos(time * 0.37) * 0.35
+            -0.45 + Math.cos(time * 0.37) * 0.3
           );
         } else if (pose === 'windowPeek') {
-          // 68cm fora da parede externa para que manto e prancheta jamais atravessem o vidro/persiana!
-          this.finalTargetPos.set(5.76, -0.05, -0.35);
+          // 1.18m fora da parede externa/persiana para zero clipping de adereços, mangas ou capuz!
+          this.finalTargetPos.set(6.18, -0.05, -0.35);
+          if (blindsClosed && this.worldPos.x < 6.14) {
+            this.worldPos.x = 6.18;
+            this.worldPos.y = -0.05;
+          }
         } else {
           this.finalTargetPos.set(3.62, 0, -0.35);
         }
       } else if (pose === 'boardApparition') {
         this.lastActiveSide = 'C';
         if (wasCompletelyHidden) {
-          this.worldPos.set(0.35, 0, -4.05);
+          this.worldPos.set(0.55, 0, -3.82);
           this.currentYaw = 0;
         }
-        // Afastado da parede frontal (Z = -5.0) e da mesa do professor (X = -1.9)
-        this.finalTargetPos.set(0.35 + Math.sin(time * 0.65) * 0.22, 0, -3.95);
+        // Livre da parede frontal (Z = -5.0), da mesa do professor (X = -1.9) e das carteiras (Z = -2.45)
+        this.finalTargetPos.set(0.55 + Math.sin(time * 0.65) * 0.2, 0, -3.82);
       }
 
       this.currentPose = pose;
+    }
+
+    // Se estava recuando pelo batente quando o jogador fechou a porta/persiana, ejeta para o lado externo limpo!
+    if (this.isRetreating) {
+      if (this.lastActiveSide === 'L' && doorClosed && this.worldPos.x > -6.06) {
+        if (this.worldPos.x < -3.85) {
+          this.worldPos.x = -6.08;
+        } else {
+          this.isRetreating = false;
+          this.currentPose = 'hidden';
+          this.root.visible = false;
+          return;
+        }
+      } else if (this.lastActiveSide === 'R' && blindsClosed && this.worldPos.x < 6.14) {
+        if (this.worldPos.x > 3.85) {
+          this.worldPos.x = 6.18;
+          this.worldPos.y = -0.05;
+        } else {
+          this.isRetreating = false;
+          this.currentPose = 'hidden';
+          this.root.visible = false;
+          return;
+        }
+      }
     }
 
     // 4. Roteamento inteligente pelos vãos de porta/janela + Movimento + Solver de Colisão!
@@ -1295,17 +1338,48 @@ export class TeacherRig {
 
     this.mixer?.update(dt);
 
-    // 6. Simulação física secundária das tiras esfarrapadas do manto (esvoaçam conforme velocidade e vento!)
+    // 5b. Compressão corporal de escalada agachada pela janela (evita bater na parede baixa 1.02m E na verga superior 2.46m!)
+    if (this.modelRoot) {
+      this.modelRoot.position.y = -0.38 * this.vaultWeight;
+    }
+    if (this.vaultWeight > 0.005) {
+      const vw = this.vaultWeight;
+      if (this.bones.leftUpLeg && this.bones.leftLeg) {
+        _tmpEuler.set(-1.38 * vw, 0, 0.08 * vw);
+        this.bones.leftUpLeg.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+        _tmpEuler.set(1.95 * vw, 0, 0);
+        this.bones.leftLeg.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      }
+      if (this.bones.rightUpLeg && this.bones.rightLeg) {
+        _tmpEuler.set(-1.38 * vw, 0, -0.08 * vw);
+        this.bones.rightUpLeg.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+        _tmpEuler.set(1.95 * vw, 0, 0);
+        this.bones.rightLeg.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      }
+      if (this.bones.spine && this.bones.spine1) {
+        _tmpEuler.set(0.38 * vw, 0, 0);
+        this.bones.spine.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+        this.bones.spine1.quaternion.multiply(_tmpQuat.setFromEuler(_tmpEuler));
+      }
+    }
+
+    // 6. Simulação física secundária das tiras esfarrapadas do manto (recolhe para trás ao escalar a janela!)
     const localForwardSpeed = this.isRetreating ? -currentSpeed : currentSpeed;
-    const targetClothX = THREE.MathUtils.clamp(localForwardSpeed * 0.095, -0.28, 0.32);
-    const targetClothZ = Math.sin(time * 2.4 + this.worldPos.x) * (0.04 + currentSpeed * 0.025);
-    this.clothSwingX += (targetClothX - this.clothSwingX) * Math.min(1, dt * 6.5);
-    this.clothSwingZ += (targetClothZ - this.clothSwingZ) * Math.min(1, dt * 6.5);
+    const nearWallDamp =
+      Math.abs(Math.abs(this.worldPos.x) - 5.0) < 1.25 && this.vaultWeight < 0.05 ? 0.25 : 1.0;
+    const targetClothX =
+      THREE.MathUtils.clamp(localForwardSpeed * 0.085, -0.22, 0.26) * nearWallDamp +
+      this.vaultWeight * 1.05;
+    const targetClothZ =
+      Math.sin(time * 2.4 + this.worldPos.x) * (0.035 + currentSpeed * 0.02) * nearWallDamp;
+    this.clothSwingX += (targetClothX - this.clothSwingX) * Math.min(1, dt * 7.5);
+    this.clothSwingZ += (targetClothZ - this.clothSwingZ) * Math.min(1, dt * 7.5);
 
     this.clothSwayPivots.forEach((piv, idx) => {
-      const flutter = Math.sin(time * 3.6 + idx * 1.15) * (0.028 + currentSpeed * 0.018);
+      const flutter =
+        Math.sin(time * 3.6 + idx * 1.15) * (0.024 + currentSpeed * 0.015) * nearWallDamp;
       piv.rotation.x = this.clothSwingX + flutter;
-      piv.rotation.z = this.clothSwingZ + Math.cos(time * 2.9 + idx * 0.9) * 0.025;
+      piv.rotation.z = this.clothSwingZ + Math.cos(time * 2.9 + idx * 0.9) * 0.022;
     });
 
     this.sleeveTatters.forEach((slv, idx) => {

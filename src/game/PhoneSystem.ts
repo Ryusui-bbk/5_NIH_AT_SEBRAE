@@ -289,23 +289,7 @@ export class PhoneSystem {
 
     if (snap.view !== 'P') return;
 
-    // Movimento natural em 1ª pessoa da mão direita segurando o celular + reflexo no vidro
-    const breathX = Math.sin(this.animClock * 1.45) * 1.0;
-    const breathY = Math.cos(this.animClock * 2.05) * 2.4;
-    const tremor =
-      snap.dangerLevel > 0.08
-        ? Math.sin(this.animClock * 26.0) * 1.5 * snap.dangerLevel
-        : 0;
-
-    const rotY = -2.4 - mouseNDC.x * 4.8 + breathX * 0.4 + tremor * 0.45;
-    const rotX = 2.6 + mouseNDC.y * 3.4 + Math.sin(this.animClock * 1.8) * 0.55;
-    const rotZ = -0.8 - mouseNDC.x * 1.0 + tremor * 0.3;
     const glareShift = 38 + mouseNDC.x * 26 + Math.sin(this.animClock * 1.1) * 6;
-
-    this.container.style.setProperty('--ph-rx', `${rotX.toFixed(2)}deg`);
-    this.container.style.setProperty('--ph-ry', `${rotY.toFixed(2)}deg`);
-    this.container.style.setProperty('--ph-rz', `${rotZ.toFixed(2)}deg`);
-    this.container.style.setProperty('--ph-ty', `${breathY.toFixed(2)}px`);
     this.container.style.setProperty('--ph-glare', `${glareShift.toFixed(1)}%`);
 
     if (this.camStaticTimer > 0) {
@@ -414,43 +398,22 @@ export class PhoneSystem {
     }
   }
 
-  private getPhoneHandRigSrc(): string {
-    const w = window as unknown as { __INLINE_PHONE_RIG__?: string };
-    return w.__INLINE_PHONE_RIG__ || './images/phone-hand-rig.webp';
-  }
-
-  private wrapPhysicalPhoneHardware(screenContentHtml: string, isScreenOff = false): string {
-    const rigSrc = this.getPhoneHandRigSrc();
+  private wrapPhysicalPhoneHardware(screenContentHtml: string): string {
     return `
-      <div class="ph-rig-3d ${isScreenOff ? 'ph-screen-off' : ''}">
-        <!-- Painel OLED interativo encaixado com precisão sob o bezel metálico e o polegar direito -->
-        <div class="ph-oled-glass">
-          ${screenContentHtml}
-
-          <!-- Trinca discreta na película + reflexo especular dinâmico no vidro -->
-          <svg class="ph-screen-crack" viewBox="0 0 300 500" aria-hidden="true">
-            <path d="M 252 0 L 269 27 L 300 41 M 269 27 L 284 62 L 300 71 M 269 27 L 246 44"
-              fill="none" stroke="rgba(215, 232, 250, 0.18)" stroke-width="0.9"/>
-          </svg>
-          <div class="ph-glass-glare" aria-hidden="true"></div>
-        </div>
-
-        <!-- Mão direita fotorrealista em 1ª pessoa + chassi metálico do celular (igual à referência!) -->
-        <img
-          class="ph-photo-hand-rig"
-          src="${rigSrc}"
-          alt=""
-          draggable="false"
-          aria-hidden="true"
-        />
+      <div class="ph-oled-glass">
+        ${screenContentHtml}
+        <svg class="ph-screen-crack" viewBox="0 0 300 500" aria-hidden="true">
+          <path d="M 252 0 L 269 27 L 300 41 M 269 27 L 284 62 L 300 71 M 269 27 L 246 44"
+            fill="none" stroke="rgba(215, 232, 250, 0.2)" stroke-width="0.9"/>
+        </svg>
+        <div class="ph-glass-glare" aria-hidden="true"></div>
       </div>
     `;
   }
 
   renderDOM(snap: GameSnapshot): void {
     if (snap.phoneBattery <= 0) {
-      this.container.innerHTML = this.wrapPhysicalPhoneHardware(
-        `
+      this.container.innerHTML = this.wrapPhysicalPhoneHardware(`
         <div class="ph-statusbar"><span>--:--</span><span>SEM CARGA · 0%</span></div>
         <div class="ph-dead">
           <div class="ph-dead-icon">${ICONS.battery}</div>
@@ -458,9 +421,7 @@ export class PhoneSystem {
           <p>Abaixe o celular [S] para recarregar no Powerbank da carteira.</p>
         </div>
         <div class="ph-homebar"></div>
-      `,
-        true
-      );
+      `);
       return;
     }
 
