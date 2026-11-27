@@ -6,6 +6,7 @@ import {
 } from '../config/nights';
 import { TEACHER_ORDER } from '../config/teachers';
 import { GameEndPayload } from '../game/GameEngine';
+import { getSlasherPortraitDataUrl } from '../scene/ProceduralTextures';
 import { StorageManager } from '../state/storage';
 import {
   GameSettings,
@@ -226,9 +227,8 @@ export class UIManager {
             <div class="mugshot-grid">
               ${TEACHER_ORDER.map((id, idx) => {
                 const disp = this.storage.getTeacherDisplay(id);
-                const avatarInner = disp.photoDataUrl
-                  ? `<img src="${disp.photoDataUrl}" alt="${disp.name}"/>`
-                  : disp.name.charAt(0);
+                const portraitSrc = disp.photoDataUrl || getSlasherPortraitDataUrl(disp.config);
+                const avatarInner = `<img src="${portraitSrc}" alt="${disp.name}"/>`;
                 return `
                   <div class="mugshot-card">
                     <span style="font-family:var(--font-mono);font-size:10px;color:var(--ash)">DOC-0${idx + 1}</span>
@@ -283,9 +283,8 @@ export class UIManager {
               ${TEACHER_ORDER.map((id, idx) => {
                 const disp = this.storage.getTeacherDisplay(id);
                 const isEditing = this.editingTeacher === id;
-                const avatarInner = disp.photoDataUrl
-                  ? `<img src="${disp.photoDataUrl}" alt="${disp.name}"/>`
-                  : disp.name.charAt(0);
+                const portraitSrc = disp.photoDataUrl || getSlasherPortraitDataUrl(disp.config);
+                const avatarInner = `<img src="${portraitSrc}" alt="${disp.name}"/>`;
                 return `
                   <div class="personnel-card">
                     <div class="personnel-top">

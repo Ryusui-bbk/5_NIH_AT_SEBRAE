@@ -949,20 +949,55 @@ export class PhoneSystem {
       x.save();
       x.translate(cx, cy);
       x.scale(scale, scale);
-      x.fillStyle = '#0d2619';
-      x.strokeStyle = '#6ee7a8';
-      x.lineWidth = 1.6;
-      // Silhueta tronco + cabeça
+
+      // Silhueta pesada estilo slasher em câmera infravermelha: ombros curvados, paletó aberto, camisa pálida e cabelo desgrenhado
+      x.fillStyle = '#091710';
+      x.strokeStyle = 'rgba(134, 239, 172, 0.55)';
+      x.lineWidth = 1.2;
       x.beginPath();
-      x.arc(0, -24, 10, 0, Math.PI * 2);
+      x.moveTo(-18, 24);
+      x.lineTo(-16, -11);
+      x.quadraticCurveTo(0, -16, 16, -11);
+      x.lineTo(18, 24);
+      x.closePath();
       x.fill();
       x.stroke();
-      x.fillRect(-14, -13, 28, 36);
-      x.strokeRect(-14, -13, 28, 36);
-      // Olhos brilhantes no infravermelho!
-      x.fillStyle = '#d9fbe8';
-      x.fillRect(-5, -26, 3, 3);
-      x.fillRect(2, -26, 3, 3);
+
+      // Camisa clara amarrotada e gravata torta no centro do peito
+      x.fillStyle = 'rgba(167, 243, 208, 0.42)';
+      x.fillRect(-5, -12, 10, 26);
+      x.strokeStyle = '#091710';
+      x.lineWidth = 2.4;
+      x.beginPath();
+      x.moveTo(0, -11);
+      x.lineTo(-5, 6);
+      x.stroke();
+
+      // Cabeleira escura desgrenhada + máscara/rosto pálido superexposto no IR
+      x.fillStyle = '#060f0a';
+      for (let k = 0; k < 9; k++) {
+        const a = Math.PI * 0.8 + (k / 8) * Math.PI * 1.4;
+        x.beginPath();
+        x.arc(Math.cos(a) * 9, -25 + Math.sin(a) * 8, 5, 0, Math.PI * 2);
+        x.fill();
+      }
+      x.fillStyle = 'rgba(187, 247, 208, 0.72)';
+      x.beginPath();
+      x.ellipse(0, -24, 8.5, 10.5, -0.08, 0, Math.PI * 2);
+      x.fill();
+
+      // Órbitas fundas escuras + boca entreaberta sinistra
+      x.fillStyle = '#050d08';
+      x.fillRect(-5.5, -27, 4, 3.2);
+      x.fillRect(1.5, -26.5, 4, 3.2);
+      x.beginPath();
+      x.ellipse(0, -18.5, 3.5, 2.2, 0, 0, Math.PI * 2);
+      x.fill();
+
+      // Reflexo vítreo minúsculo de infravermelho nos olhos
+      x.fillStyle = '#ecfdf5';
+      x.fillRect(-4, -26, 1.3, 1.3);
+      x.fillRect(3, -25.5, 1.3, 1.3);
       x.restore();
 
       x.fillStyle = '#86efac';
