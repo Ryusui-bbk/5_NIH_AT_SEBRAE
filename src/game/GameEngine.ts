@@ -609,7 +609,7 @@ export class GameEngine {
       st.bellCharge = Math.max(0, st.bellCharge - dt * drain);
       if (wasAbove && st.bellCharge < 32) {
         this.sound.playNotification();
-        this.setHint('⚠️ Sirene da Secretaria abaixo de 30%! Abra CFTV -> CAM 03!', 3.8);
+        this.setHint('Sirene da Secretaria abaixo de 30% — abra CFTV > CAM 03.', 3.8);
       }
       if (st.bellCharge <= 0) {
         st.stage = 3;
@@ -618,7 +618,7 @@ export class GameEngine {
         st.attackProgress = 0;
         this.sound.playSchoolBellAlarm();
         this.emitTeacherQuote('celia', 'attack');
-        this.setHint('🚨 O SINAL BATEU! TRANQUE A PORTA (Espaço na Porta) IMEDIATAMENTE!', 4.0);
+        this.setHint('O SINAL DISPAROU! TRANQUE A PORTA [ESPAÇO] IMEDIATAMENTE!', 4.0);
       }
     } else {
       st.enterAnim = Math.min(1, st.enterAnim + dt * 1.2);

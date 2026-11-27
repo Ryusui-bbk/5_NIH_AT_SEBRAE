@@ -14,6 +14,7 @@ import {
   TeacherId,
   ViewDirection,
 } from '../types';
+import { ICONS } from './icons';
 
 type MenuTab = 'home' | 'nights' | 'custom' | 'dossie' | 'achievements' | 'settings';
 
@@ -100,300 +101,310 @@ export class UIManager {
 
     if (this.currentTab === 'home') {
       const nextNightNum = Math.min(5, save.unlockedNight);
-      const nextNight = CAMPAIGN_NIGHTS[nextNightNum - 1];
 
       this.overlayRoot.innerHTML = `
-        <div class="menu-shell">
-          <span class="brand-kicker">🔴 ETEC SEBRAE · SURVIVAL HORROR 3D</span>
-          <h1 class="brand-title">PLANTÃO NOTURNO</h1>
-          <p class="brand-sub">
-            Sexta-feira, meia-noite. Os portões magnéticos da ETEC Sebrae travaram e o
-            <b>Diário de Classe</b> manteve a equipe pedagógica em ronda eterna.
-            Quebre o bloqueio no celular para chamar o resgate 190 antes das 06:00 — mas lembre-se da regra nº 1:
-            <b>celular guardado quando eles estiverem olhando</b>.
-          </p>
+        <div class="title-screen">
+          <div class="vhs-topline">
+            <span class="rec-indicator"><i class="rec-dot"></i> REC · CÂMERA INTERNA · SALA 04</span>
+            <span>ETEC SEBRAE // ARQUIVO NOTURNO</span>
+          </div>
 
-          <div class="menu-grid">
-            <div class="menu-actions">
-              <button class="btn btn-primary" data-go-night="${nextNightNum}">
-                <span>▶ Iniciar ${nextNight.dayLabel}: ${nextNight.title.split('—')[1]?.trim() || ''}</span>
-                <span>→</span>
-              </button>
-              <button class="btn" data-tab="nights">
-                <span>📅 Selecionar Noite (Campanha 1–5)</span>
-                <span>${save.completedNights.length}/5 concluídas</span>
-              </button>
-              <button class="btn" data-tab="custom">
-                <span>⚖️ Conselho de Classe (Noite Personalizada)</span>
-                <span>IA 0–20</span>
-              </button>
-              <button class="btn" data-tab="dossie">
-                <span>🗂️ Dossiê & Personalizar Professores (Fotos/Nomes)</span>
-                <span>5 docentes</span>
-              </button>
-              <button class="btn" data-tab="achievements">
-                <span>🏆 Conquistas & Histórico</span>
-                <span>${save.unlockedAchievements.length}/${ACHIEVEMENTS.length}</span>
-              </button>
-              <button class="btn" data-tab="settings">
-                <span>⚙️ Configurações & Controles</span>
-                <span>Áudio / Vídeo</span>
-              </button>
-            </div>
+          <div class="title-main-block">
+            <div class="title-code">BLOCO B · SEXTA-FEIRA · 23H59</div>
+            <h1 class="horror-logo">PLANTÃO<br/>NOTURNO</h1>
+            <div class="horror-rule"></div>
+            <p class="horror-synopsis">
+              Os portões magnéticos fecharam com você ainda na recuperação.
+              O Diário de Classe mantém os docentes em ronda pelos corredores — e a regra mais antiga continua valendo: celular guardado quando alguém estiver olhando.
+            </p>
 
-            <div class="info-panel">
-              <div>
-                <h3 style="margin:0 0 8px;font-size:15px;color:#f8fafc">Resumo de Comandos</h3>
-                <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.55">
-                  • <b>A / D / W</b> (ou botões): Olhar Porta, Janela e Quadro<br/>
-                  • <b>S</b>: Levantar / Guardar o Celular<br/>
-                  • <b>F</b>: Ligar / Desligar a Lanterna<br/>
-                  • <b>Espaço</b>: Trava Magnética da Porta Esquerda<br/>
-                  • <b>E</b>: Fechar / Abrir Persiana da Janela Direita<br/>
-                  • <b>ESC</b>: Pausar partida
-                </p>
-              </div>
+            <nav class="horror-nav">
+              <button class="horror-nav-item primary" data-go-night="${nextNightNum}">
+                <span>Iniciar Plantão</span>
+                <span class="horror-nav-meta">[NOITE 0${nextNightNum}]</span>
+              </button>
+              <button class="horror-nav-item" data-tab="nights">
+                <span>Selecionar Turno</span>
+                <span class="horror-nav-meta">${save.completedNights.length}/5</span>
+              </button>
+              <button class="horror-nav-item" data-tab="custom">
+                <span>Conselho de Classe</span>
+                <span class="horror-nav-meta">IA 0–20</span>
+              </button>
+              <button class="horror-nav-item" data-tab="dossie">
+                <span>Arquivos dos Docentes</span>
+                <span class="horror-nav-meta">FICHAS / FOTOS</span>
+              </button>
+              <button class="horror-nav-item" data-tab="achievements">
+                <span>Histórico Escolar</span>
+                <span class="horror-nav-meta">${save.unlockedAchievements.length}/${ACHIEVEMENTS.length}</span>
+              </button>
+              <button class="horror-nav-item" data-tab="settings">
+                <span>Opções de Sistema</span>
+                <span class="horror-nav-meta">ÁUDIO / VÍDEO</span>
+              </button>
+            </nav>
+          </div>
 
-              <div class="stat-pills">
-                <div class="stat-pill">
-                  <span>Turnos Vencidos</span>
-                  <b>${save.stats.nightsWon}</b>
-                </div>
-                <div class="stat-pill">
-                  <span>Retenções (I)</span>
-                  <b>${save.stats.deaths}</b>
-                </div>
-                <div class="stat-pill">
-                  <span>Recorde Conselho</span>
-                  <b>${save.customNightBestScore}</b>
-                </div>
-                <div class="stat-pill">
-                  <span>Conquistas</span>
-                  <b>${save.unlockedAchievements.length}/${ACHIEVEMENTS.length}</b>
-                </div>
-              </div>
-            </div>
+          <div class="vhs-bottomline">
+            <span>TURNOS VENCIDOS: ${String(save.stats.nightsWon).padStart(2, '0')} · RETENÇÕES: ${String(save.stats.deaths).padStart(2, '0')} · RECORDE CONSELHO: ${save.customNightBestScore}</span>
+            <span>[WASD] VISÃO & CELULAR · [F] LANTERNA · [ESPAÇO] PORTA · [E] PERSIANA</span>
           </div>
         </div>
       `;
     } else if (this.currentTab === 'nights') {
       this.overlayRoot.innerHTML = `
-        <div class="menu-shell">
-          <div class="sub-header">
-            <h2>📅 Selecionar Noite — Campanha</h2>
-            <button class="btn btn-sm" data-tab="home">← Voltar</button>
-          </div>
-          <div class="nights-list">
-            ${CAMPAIGN_NIGHTS.map((n) => {
-              const unlocked = n.nightNumber <= save.unlockedNight;
-              const completed = save.completedNights.includes(n.nightNumber);
-              const activeNames = TEACHER_ORDER.filter((id) => n.aiLevels[id] > 0)
-                .map((id) => this.storage.getTeacherDisplay(id).name)
-                .join(', ');
-              return `
-                <div class="night-card ${unlocked ? '' : 'locked'}">
-                  <div>
-                    <span class="brand-kicker">${n.dayLabel} ${completed ? '· ⭐ CONCLUÍDA' : ''}</span>
-                    <h3>${n.title.split('—')[1]?.trim() || n.title}</h3>
-                    <p>${n.subtitle}</p>
-                    <p style="margin-top:8px;font-size:12px;color:#cbd5e1">
-                      <b>Em ronda:</b> ${activeNames}
-                    </p>
+        <div class="dossier-backdrop">
+          <div class="dossier-frame">
+            <div class="dossier-header">
+              <div>
+                <div class="dossier-kicker">SECRETARIA ACADÊMICA // ESCALA DE PLANTÃO</div>
+                <h2 class="dossier-title">Seleção de Turno (Noites 01 a 05)</h2>
+              </div>
+              <button class="btn-sharp btn-compact" data-tab="home">[ VOLTAR ]</button>
+            </div>
+
+            <div class="shift-grid">
+              ${CAMPAIGN_NIGHTS.map((n) => {
+                const unlocked = n.nightNumber <= save.unlockedNight;
+                const completed = save.completedNights.includes(n.nightNumber);
+                const activeNames = TEACHER_ORDER.filter((id) => n.aiLevels[id] > 0)
+                  .map((id) => this.storage.getTeacherDisplay(id).name)
+                  .join(', ');
+                return `
+                  <div class="shift-card ${unlocked ? '' : 'locked'}">
+                    <div>
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span class="stamp ${completed ? 'ok' : unlocked ? 'amber' : ''}">
+                          ${completed ? 'CONCLUÍDA' : unlocked ? 'DISPONÍVEL' : 'BLOQUEADA'}
+                        </span>
+                        <span style="font-family:var(--font-mono);font-size:11px;color:var(--ash)">${n.dayLabel}</span>
+                      </div>
+                      <h3>${n.title.split('—')[1]?.trim() || n.title}</h3>
+                      <p>${n.subtitle}</p>
+                      <p style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--bone)">
+                        RONDA: ${activeNames}
+                      </p>
+                    </div>
+                    ${
+                      unlocked
+                        ? `<button class="btn-sharp btn-crimson btn-compact" data-go-night="${n.nightNumber}">Iniciar ${n.dayLabel}</button>`
+                        : `<button class="btn-sharp btn-compact" disabled>Requer Noite 0${n.nightNumber - 1}</button>`
+                    }
                   </div>
-                  ${
-                    unlocked
-                      ? `<button class="btn btn-primary btn-sm" data-go-night="${n.nightNumber}">Jogar ${n.dayLabel} ▶</button>`
-                      : `<button class="btn btn-sm" disabled>🔒 Conclua a Noite ${n.nightNumber - 1}</button>`
-                  }
-                </div>
-              `;
-            }).join('')}
+                `;
+              }).join('')}
+            </div>
           </div>
         </div>
       `;
     } else if (this.currentTab === 'custom') {
       const sum = Object.values(this.customAi).reduce((a, b) => a + b, 0);
       this.overlayRoot.innerHTML = `
-        <div class="menu-shell">
-          <div class="sub-header">
-            <h2>⚖️ Conselho de Classe — Noite Personalizada</h2>
-            <button class="btn btn-sm" data-tab="home">← Voltar</button>
-          </div>
+        <div class="dossier-backdrop">
+          <div class="dossier-frame">
+            <div class="dossier-header">
+              <div>
+                <div class="dossier-kicker">SESSÃO EXTRAORDINÁRIA // NÍVEL DE AGRESSIVIDADE</div>
+                <h2 class="dossier-title">Conselho de Classe</h2>
+              </div>
+              <button class="btn-sharp btn-compact" data-tab="home">[ VOLTAR ]</button>
+            </div>
 
-          <div class="preset-bar">
-            ${CUSTOM_NIGHT_PRESETS.map(
-              (pr) =>
-                `<button class="btn btn-sm" data-preset="${pr.id}" title="${pr.description}">⚡ ${pr.name}</button>`
-            ).join('')}
-            <button class="btn btn-sm" data-custom-mode="toggle">
-              Modo: <b>${
-                this.customMode === 'protocol' ? '📱 Protocolo (6 Etapas)' : '🕕 Sobreviver até 06:00'
-              }</b>
-            </button>
-          </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+              ${CUSTOM_NIGHT_PRESETS.map(
+                (pr) =>
+                  `<button class="btn-sharp btn-compact" data-preset="${pr.id}" title="${pr.description}">${pr.name}</button>`
+              ).join('')}
+              <button class="btn-sharp btn-compact" style="border-color:var(--amber);color:var(--amber)" data-custom-mode="toggle">
+                REGRA: ${
+                  this.customMode === 'protocol' ? 'PROTOCOLO (6 ETAPAS)' : 'SOBREVIVER ATÉ 06:00'
+                }
+              </button>
+            </div>
 
-          <div class="teacher-cards">
-            ${TEACHER_ORDER.map((id) => {
-              const disp = this.storage.getTeacherDisplay(id);
-              const avatarInner = disp.photoDataUrl
-                ? `<img src="${disp.photoDataUrl}" alt="${disp.name}"/>`
-                : disp.name.charAt(0);
-              return `
-                <div class="teacher-card">
-                  <div class="t-head">
-                    <div class="t-avatar" style="border-color:${disp.config.accentColor}">${avatarInner}</div>
-                    <div class="t-meta">
-                      <h3>${disp.name}</h3>
-                      <small>${disp.subject}</small>
+            <div class="mugshot-grid">
+              ${TEACHER_ORDER.map((id, idx) => {
+                const disp = this.storage.getTeacherDisplay(id);
+                const avatarInner = disp.photoDataUrl
+                  ? `<img src="${disp.photoDataUrl}" alt="${disp.name}"/>`
+                  : disp.name.charAt(0);
+                return `
+                  <div class="mugshot-card">
+                    <span style="font-family:var(--font-mono);font-size:10px;color:var(--ash)">DOC-0${idx + 1}</span>
+                    <div class="mugshot-frame">${avatarInner}</div>
+                    <div>
+                      <div style="font-family:var(--font-serif);font-size:15px;color:var(--bone)">${disp.name}</div>
+                      <div style="font-size:11px;color:var(--ash)">${disp.subject}</div>
+                    </div>
+                    <div class="ai-counter">
+                      <button data-ai="${id}:-5" title="-5">«</button>
+                      <button data-ai="${id}:-1" title="-1">&lt;</button>
+                      <b style="color:${this.customAi[id] > 0 ? 'var(--bone)' : 'var(--ash)'}">${String(this.customAi[id]).padStart(2, '0')}</b>
+                      <button data-ai="${id}:1" title="+1">&gt;</button>
+                      <button data-ai="${id}:5" title="+5">»</button>
                     </div>
                   </div>
-                  <div class="ai-stepper">
-                    <button class="btn btn-sm" data-ai="${id}:-5">-5</button>
-                    <button class="btn btn-sm" data-ai="${id}:-1">-</button>
-                    <b style="color:${disp.config.accentColor}">${this.customAi[id]}</b>
-                    <button class="btn btn-sm" data-ai="${id}:1">+</button>
-                    <button class="btn btn-sm" data-ai="${id}:5">+5</button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
+                `;
+              }).join('')}
+            </div>
 
-          <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-            <span style="font-size:14px;color:#cbd5e1">
-              Dificuldade Total: <b>${sum}/100</b> · Recorde Atual: <b>${save.customNightBestScore} pts</b>
-            </span>
-            <button class="btn btn-primary" data-start-custom="1">
-              ▶ Iniciar Sessão do Conselho
-            </button>
+            <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--ash)">
+                SOMA DE IA: <b style="color:var(--bone)">${sum}/100</b> · RECORDE REGISTRADO: <b style="color:var(--bone)">${save.customNightBestScore} PTS</b>
+              </span>
+              <button class="btn-sharp btn-crimson" data-start-custom="1">
+                Iniciar Sessão do Conselho
+              </button>
+            </div>
           </div>
         </div>
       `;
     } else if (this.currentTab === 'dossie') {
       this.overlayRoot.innerHTML = `
-        <div class="menu-shell">
-          <div class="sub-header">
-            <h2>🗂️ Dossiê & Editor de Professores</h2>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm" data-reset-teachers="1">Restaurar Padrão</button>
-              <button class="btn btn-sm" data-tab="home">← Voltar</button>
+        <div class="dossier-backdrop">
+          <div class="dossier-frame">
+            <div class="dossier-header">
+              <div>
+                <div class="dossier-kicker">ARQUIVO CONFIDENCIAL // CORPO DOCENTE</div>
+                <h2 class="dossier-title">Fichas Funcionais & Customização</h2>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn-sharp btn-compact" data-reset-teachers="1">Restaurar Padrão</button>
+                <button class="btn-sharp btn-compact" data-tab="home">[ VOLTAR ]</button>
+              </div>
             </div>
-          </div>
-          <p style="margin:0 0 14px;font-size:13.5px;color:#94a3b8">
-            Conheça o comportamento de cada membro do plantão. Você também pode <b>personalizar nomes, matérias, frases e enviar fotos</b> para aparecerem direto nos modelos 3D e crachás!
-          </p>
-          <div class="teacher-cards">
-            ${TEACHER_ORDER.map((id) => {
-              const disp = this.storage.getTeacherDisplay(id);
-              const isEditing = this.editingTeacher === id;
-              const avatarInner = disp.photoDataUrl
-                ? `<img src="${disp.photoDataUrl}" alt="${disp.name}"/>`
-                : disp.name.charAt(0);
-              return `
-                <div class="teacher-card">
-                  <div class="t-head">
-                    <div class="t-avatar" style="border-color:${disp.config.accentColor}">${avatarInner}</div>
-                    <div class="t-meta">
-                      <h3>${disp.name}</h3>
-                      <small>${disp.subject} · ${disp.config.originLabel}</small>
-                    </div>
-                  </div>
-                  <p style="margin:0;font-size:12.5px;color:#94a3b8;line-height:1.42">${disp.config.bio}</p>
-                  <div class="t-tip" style="border-left-color:${disp.config.accentColor}">
-                    <b>Como evitar:</b> ${disp.config.counterplayTip}
-                  </div>
-                  <button class="btn btn-sm" data-edit-teacher="${id}">
-                    ${isEditing ? '▲ Fechar Editor' : '✏️ Personalizar Nome / Foto'}
-                  </button>
-                  ${
-                    isEditing
-                      ? `
-                    <div class="edit-form">
-                      <input type="text" id="ed-name-${id}" maxlength="22" placeholder="Nome do professor" value="${this.escapeAttr(disp.name)}"/>
-                      <input type="text" id="ed-subj-${id}" maxlength="28" placeholder="Matéria / Cargo" value="${this.escapeAttr(disp.subject)}"/>
-                      <input type="text" id="ed-quote-${id}" maxlength="65" placeholder="Frase de ataque opcional" value="${this.escapeAttr(disp.customQuote || '')}"/>
-                      <label class="btn btn-sm" style="justify-content:center">
-                        📷 Escolher Foto (.jpg / .png)
-                        <input type="file" accept="image/*" data-photo-upload="${id}" style="display:none"/>
-                      </label>
-                      <div style="display:flex;gap:6px">
-                        <button class="btn btn-primary btn-sm" style="flex:1" data-save-teacher="${id}">Salvar</button>
-                        <button class="btn btn-sm" data-clear-photo="${id}">Limpar</button>
+
+            <p style="margin:0 0 14px;font-size:13px;color:var(--ash)">
+              Relatório de comportamento noturno. Você pode alterar nomes, disciplinas, bordões ou anexar fotografias reais que serão aplicadas aos modelos e crachás 3D.
+            </p>
+
+            <div class="personnel-grid">
+              ${TEACHER_ORDER.map((id, idx) => {
+                const disp = this.storage.getTeacherDisplay(id);
+                const isEditing = this.editingTeacher === id;
+                const avatarInner = disp.photoDataUrl
+                  ? `<img src="${disp.photoDataUrl}" alt="${disp.name}"/>`
+                  : disp.name.charAt(0);
+                return `
+                  <div class="personnel-card">
+                    <div class="personnel-top">
+                      <div class="mugshot-frame" style="width:62px;height:62px;font-size:22px">${avatarInner}</div>
+                      <div>
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--ash)">REGISTRO #0${idx + 1} · ${disp.config.originLabel.toUpperCase()}</div>
+                        <div style="font-family:var(--font-serif);font-size:17px;color:var(--bone);margin:2px 0">${disp.name}</div>
+                        <div style="font-size:12px;color:var(--ash)">${disp.subject}</div>
                       </div>
                     </div>
-                  `
-                      : ''
-                  }
-                </div>
-              `;
-            }).join('')}
+                    <p style="margin:0;font-size:12.5px;color:var(--ash);line-height:1.45">${disp.config.bio}</p>
+                    <div class="personnel-note">
+                      <b style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--amber)">Contramedida:</b><br/>
+                      ${disp.config.counterplayTip}
+                    </div>
+                    <button class="btn-sharp btn-compact" data-edit-teacher="${id}">
+                      ${isEditing ? 'Fechar Ficha' : 'Editar Ficha / Anexar Foto'}
+                    </button>
+                    ${
+                      isEditing
+                        ? `
+                      <div class="edit-drawer">
+                        <input type="text" id="ed-name-${id}" maxlength="22" placeholder="Nome do docente" value="${this.escapeAttr(disp.name)}"/>
+                        <input type="text" id="ed-subj-${id}" maxlength="28" placeholder="Disciplina / Setor" value="${this.escapeAttr(disp.subject)}"/>
+                        <input type="text" id="ed-quote-${id}" maxlength="65" placeholder="Fala personalizada de abordagem" value="${this.escapeAttr(disp.customQuote || '')}"/>
+                        <label class="btn-sharp btn-compact">
+                          ${ICONS.upload} Selecionar Fotografia (.jpg / .png)
+                          <input type="file" accept="image/*" data-photo-upload="${id}" style="display:none"/>
+                        </label>
+                        <div style="display:flex;gap:6px">
+                          <button class="btn-sharp btn-crimson btn-compact" style="flex:1" data-save-teacher="${id}">Salvar Alterações</button>
+                          <button class="btn-sharp btn-compact" data-clear-photo="${id}">Padrão</button>
+                        </div>
+                      </div>
+                    `
+                        : ''
+                    }
+                  </div>
+                `;
+              }).join('')}
+            </div>
           </div>
         </div>
       `;
     } else if (this.currentTab === 'achievements') {
       this.overlayRoot.innerHTML = `
-        <div class="menu-shell">
-          <div class="sub-header">
-            <h2>🏆 Conquistas & Histórico Escolar</h2>
-            <button class="btn btn-sm" data-tab="home">← Voltar</button>
-          </div>
-          <div class="ach-grid">
-            ${ACHIEVEMENTS.map((ach) => {
-              const unlocked = save.unlockedAchievements.includes(ach.id);
-              return `
-                <div class="ach-card ${unlocked ? '' : 'locked'}">
-                  <div class="ach-icon">${ach.icon}</div>
-                  <div>
-                    <b style="font-size:14px;display:block">${ach.title}</b>
-                    <span style="font-size:12px;color:#94a3b8">${ach.description}</span>
+        <div class="dossier-backdrop">
+          <div class="dossier-frame">
+            <div class="dossier-header">
+              <div>
+                <div class="dossier-kicker">SISTEMA NSA // REGISTRO DE MENÇÕES</div>
+                <h2 class="dossier-title">Histórico Escolar & Conquistas</h2>
+              </div>
+              <button class="btn-sharp btn-compact" data-tab="home">[ VOLTAR ]</button>
+            </div>
+
+            <div class="records-grid">
+              ${ACHIEVEMENTS.map((ach) => {
+                const unlocked = save.unlockedAchievements.includes(ach.id);
+                return `
+                  <div class="record-item ${unlocked ? '' : 'locked'}">
+                    <div class="record-stamp">${unlocked ? ach.icon : '---'}</div>
+                    <div>
+                      <div style="font-family:var(--font-serif);font-size:15px;color:var(--bone)">${ach.title}</div>
+                      <div style="font-size:12px;color:var(--ash);margin-top:2px;line-height:1.38">${ach.description}</div>
+                    </div>
                   </div>
-                </div>
-              `;
-            }).join('')}
+                `;
+              }).join('')}
+            </div>
           </div>
         </div>
       `;
     } else if (this.currentTab === 'settings') {
       const s = save.settings;
       this.overlayRoot.innerHTML = `
-        <div class="menu-shell">
-          <div class="sub-header">
-            <h2>⚙️ Configurações & Acessibilidade</h2>
-            <button class="btn btn-sm" data-tab="home">← Voltar</button>
-          </div>
+        <div class="dossier-backdrop">
+          <div class="dossier-frame" style="max-width:680px">
+            <div class="dossier-header">
+              <div>
+                <div class="dossier-kicker">PAINEL TÉCNICO // CALIBRAÇÃO</div>
+                <h2 class="dossier-title">Opções de Sistema</h2>
+              </div>
+              <button class="btn-sharp btn-compact" data-tab="home">[ VOLTAR ]</button>
+            </div>
 
-          <div class="settings-row">
-            <span>Volume Geral (${Math.round(s.masterVolume * 100)}%)</span>
-            <input type="range" min="0" max="100" value="${Math.round(s.masterVolume * 100)}" data-range="masterVolume"/>
-          </div>
-          <div class="settings-row">
-            <span>Volume de Efeitos (${Math.round(s.sfxVolume * 100)}%)</span>
-            <input type="range" min="0" max="100" value="${Math.round(s.sfxVolume * 100)}" data-range="sfxVolume"/>
-          </div>
-          <div class="settings-row">
-            <span>Volume da Chuva & Ambiência (${Math.round(s.ambienceVolume * 100)}%)</span>
-            <input type="range" min="0" max="100" value="${Math.round(s.ambienceVolume * 100)}" data-range="ambienceVolume"/>
-          </div>
-          <div class="settings-row">
-            <span>Granulação de Filme VHS</span>
-            <button class="btn btn-sm" data-bool="filmGrain">${s.filmGrain ? 'Ligado' : 'Desligado'}</button>
-          </div>
-          <div class="settings-row">
-            <span>Sombras Dinâmicas 3D</span>
-            <button class="btn btn-sm" data-bool="highQualityShadows">${s.highQualityShadows ? 'Alta' : 'Desempenho'}</button>
-          </div>
-          <div class="settings-row">
-            <span>Paralaxe Suave do Mouse</span>
-            <button class="btn btn-sm" data-bool="mouseParallax">${s.mouseParallax ? 'Ligado' : 'Desligado'}</button>
-          </div>
-          <div class="settings-row">
-            <span>Reduzir Flashes de Luz (Conforto Visual)</span>
-            <button class="btn btn-sm" data-bool="reducedFlashes">${s.reducedFlashes ? 'Ativado' : 'Padrão'}</button>
-          </div>
+            <div class="opt-row">
+              <span>VOLUME MESTRE (${Math.round(s.masterVolume * 100)}%)</span>
+              <input type="range" min="0" max="100" value="${Math.round(s.masterVolume * 100)}" data-range="masterVolume"/>
+            </div>
+            <div class="opt-row">
+              <span>VOLUME DE EFEITOS (${Math.round(s.sfxVolume * 100)}%)</span>
+              <input type="range" min="0" max="100" value="${Math.round(s.sfxVolume * 100)}" data-range="sfxVolume"/>
+            </div>
+            <div class="opt-row">
+              <span>AMBIÊNCIA & CHUVA (${Math.round(s.ambienceVolume * 100)}%)</span>
+              <input type="range" min="0" max="100" value="${Math.round(s.ambienceVolume * 100)}" data-range="ambienceVolume"/>
+            </div>
+            <div class="opt-row">
+              <span>RUÍDO ANALÓGICO VHS</span>
+              <button class="btn-sharp btn-compact" data-bool="filmGrain">${s.filmGrain ? 'ATIVO' : 'INATIVO'}</button>
+            </div>
+            <div class="opt-row">
+              <span>SOMBRAS DINÂMICAS 3D</span>
+              <button class="btn-sharp btn-compact" data-bool="highQualityShadows">${s.highQualityShadows ? 'ALTA' : 'DESEMPENHO'}</button>
+            </div>
+            <div class="opt-row">
+              <span>PARALAXE DE VISÃO (MOUSE)</span>
+              <button class="btn-sharp btn-compact" data-bool="mouseParallax">${s.mouseParallax ? 'ATIVO' : 'INATIVO'}</button>
+            </div>
+            <div class="opt-row">
+              <span>REDUZIR CLARÕES DE LUZ</span>
+              <button class="btn-sharp btn-compact" data-bool="reducedFlashes">${s.reducedFlashes ? 'ATIVADO' : 'PADRÃO'}</button>
+            </div>
 
-          <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-sm" data-unlock-all="1">🔓 Liberar Todas as 5 Noites (Modo Apresentação)</button>
-            <button class="btn btn-sm" data-reset-save="1">🗑️ Zerar Progresso da Campanha</button>
+            <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn-sharp btn-compact" data-unlock-all="1">Liberar Todos os Turnos (Apresentação)</button>
+              <button class="btn-sharp btn-compact" data-reset-save="1">Apagar Registro Salvo</button>
+            </div>
           </div>
         </div>
       `;
@@ -583,24 +594,27 @@ export class UIManager {
   showNightBriefing(config: NightConfig): void {
     const activeTeachers = TEACHER_ORDER.filter((id) => config.aiLevels[id] > 0).map((id) => {
       const d = this.storage.getTeacherDisplay(id);
-      return `<span class="brand-kicker" style="border-color:${d.config.accentColor};color:#fff;background:rgba(255,255,255,0.06)">${d.name} (IA ${config.aiLevels[id]})</span>`;
+      return `<span class="stamp amber">${d.name} [IA ${config.aiLevels[id]}]</span>`;
     });
 
     this.overlayRoot.style.display = 'flex';
     this.overlayRoot.innerHTML = `
-      <div class="menu-shell" style="max-width:620px;text-align:center">
-        <span class="brand-kicker">00:00 AM · ${config.dayLabel}</span>
-        <h1 class="brand-title" style="font-size:clamp(26px,4.5vw,38px)">${config.title}</h1>
-        <p class="brand-sub" style="margin:0 auto 14px">${config.subtitle}</p>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:16px">
-          ${activeTeachers.join('')}
-        </div>
-        <div class="t-tip" style="text-align:left;margin-bottom:20px;font-size:13.5px">
-          <b>Orientação da Noite:</b> ${config.briefingTip}
-        </div>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button class="btn" id="brief-cancel">← Voltar</button>
-          <button class="btn btn-primary" id="brief-go">Entrar na Sala 04 ▶</button>
+      <div class="briefing-blackout">
+        <div class="briefing-inner">
+          <p class="briefing-clock">12:00 AM</p>
+          <h2 class="briefing-night">${config.title}</h2>
+          <div class="horror-rule" style="margin:6px auto"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+            ${activeTeachers.join('')}
+          </div>
+          <div class="personnel-note" style="text-align:left;max-width:480px;margin:8px 0">
+            <b style="font-family:var(--font-mono);font-size:10.5px;color:var(--amber);text-transform:uppercase">Anotação no Caderno:</b><br/>
+            ${config.briefingTip}
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn-sharp" id="brief-cancel">[ Cancelar ]</button>
+            <button class="btn-sharp btn-crimson" id="brief-go">Entrar na Sala 04</button>
+          </div>
         </div>
       </div>
     `;
@@ -622,15 +636,18 @@ export class UIManager {
     const muted = this.storage.getSettings().muted;
     this.overlayRoot.style.display = 'flex';
     this.overlayRoot.innerHTML = `
-      <div class="menu-shell" style="max-width:440px;text-align:center">
-        <h2 style="margin:0 0 8px">⏸ Plantão Pausado</h2>
-        <p style="margin:0 0 18px;font-size:13.5px;color:#94a3b8">
-          A ronda aguarda no corredor. Respire fundo.
-        </p>
-        <div class="menu-actions">
-          <button class="btn btn-primary" id="pz-resume">▶ Continuar Partida (ESC)</button>
-          <button class="btn" id="pz-mute">${muted ? '🔇 Som Mutado (Clique p/ Ativar)' : '🔊 Som Ativo (Clique p/ Mutar)'}</button>
-          <button class="btn" id="pz-quit">🚪 Sair para o Menu Principal</button>
+      <div class="dossier-backdrop">
+        <div class="dossier-frame" style="max-width:400px;text-align:center">
+          <div class="dossier-kicker">GRAVAÇÃO INTERROMPIDA</div>
+          <h2 class="dossier-title" style="margin-bottom:18px">PAUSA</h2>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn-sharp btn-crimson" id="pz-resume">Retomar Plantão [ESC]</button>
+            <button class="btn-sharp" id="pz-mute">
+              ${muted ? ICONS.soundOff : ICONS.soundOn}
+              <span>Áudio: ${muted ? 'Silenciado' : 'Ativo'}</span>
+            </button>
+            <button class="btn-sharp" id="pz-quit">Encerrar e Voltar ao Menu</button>
+          </div>
         </div>
       </div>
     `;
@@ -666,45 +683,44 @@ export class UIManager {
     const achHtml =
       payload.newAchievements.length > 0
         ? `
-        <div style="margin:14px 0;padding:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);border-radius:12px">
-          <b style="font-size:12.5px;color:#86efac">🏆 Nova(s) Conquista(s) Desbloqueada(s):</b>
-          <div style="margin-top:4px;font-size:13.5px">
-            ${payload.newAchievements
-              .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
-              .filter(Boolean)
-              .map((a) => `${a!.icon} <b>${a!.title}</b>`)
-              .join(' · ')}
-          </div>
+        <div style="margin:12px 0;padding:10px;border:1px solid var(--phosphor);background:rgba(89,179,119,0.08);font-family:var(--font-mono);font-size:12px">
+          <div style="color:var(--phosphor);margin-bottom:4px">REGISTRO ADICIONADO AO HISTÓRICO:</div>
+          ${payload.newAchievements
+            .map((id) => ACHIEVEMENTS.find((a) => a.id === id))
+            .filter(Boolean)
+            .map((a) => `[${a!.icon}] ${a!.title}`)
+            .join(' · ')}
         </div>
       `
         : '';
 
     this.overlayRoot.innerHTML = `
-      <div class="menu-shell" style="max-width:580px;text-align:center">
-        <span class="brand-kicker" style="${
-          payload.won
-            ? 'background:rgba(34,197,94,0.18);border-color:#4ade80;color:#86efac'
-            : ''
-        }">
-          ${payload.won ? '✅ TURNO SUPERADO' : '❌ FIM DE PLANTÃO'}
-        </span>
-        <h1 class="brand-title" style="color:${payload.won ? '#4ade80' : '#f87171'};font-size:clamp(28px,5vw,44px)">
-          ${payload.title}
-        </h1>
-        <p class="brand-sub" style="margin:8px auto 16px;color:#e2e8f0">
-          ${payload.description}
-        </p>
-        ${achHtml}
-        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
-          ${
-            nextNight
-              ? `<button class="btn btn-primary" id="end-next">▶ Avançar para ${nextNight.dayLabel}</button>`
-              : ''
-          }
-          <button class="btn ${nextNight ? '' : 'btn-primary'}" id="end-retry">
-            ↻ Jogar Novamente
-          </button>
-          <button class="btn" id="end-menu">Menu Principal</button>
+      <div class="briefing-blackout">
+        <div class="dossier-frame" style="max-width:540px;text-align:center">
+          <span class="stamp ${payload.won ? 'ok' : 'danger'}">
+            ${payload.won ? 'BOLETIM DE ENCERRAMENTO // DEFERIDO' : 'TERMO DE RETENÇÃO // MENÇÃO I'}
+          </span>
+          <h1 class="horror-logo" style="font-size:clamp(28px,5vw,42px);margin-top:14px;color:${
+            payload.won ? 'var(--bone)' : 'var(--crimson)'
+          }">
+            ${payload.title}
+          </h1>
+          <div class="horror-rule" style="margin:14px auto"></div>
+          <p style="font-size:14px;line-height:1.6;color:var(--bone);margin:0 0 14px">
+            ${payload.description}
+          </p>
+          ${achHtml}
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px">
+            ${
+              nextNight
+                ? `<button class="btn-sharp btn-crimson" id="end-next">Avançar para ${nextNight.dayLabel}</button>`
+                : ''
+            }
+            <button class="btn-sharp ${nextNight ? '' : 'btn-crimson'}" id="end-retry">
+              Tentar Novamente
+            </button>
+            <button class="btn-sharp" id="end-menu">Menu Inicial</button>
+          </div>
         </div>
       </div>
     `;
@@ -722,52 +738,98 @@ export class UIManager {
     });
   }
 
+  private renderSegBar(pct: number, segments = 5): string {
+    const filled = Math.ceil((Math.max(0, pct) / 100) * segments);
+    const isLow = pct <= 22;
+    let html = '<span class="seg-bar">';
+    for (let i = 0; i < segments; i++) {
+      const cls = i < filled ? (isLow ? 'low' : 'on') : '';
+      html += `<i class="${cls}"></i>`;
+    }
+    html += '</span>';
+    return html;
+  }
+
   private buildHudDOM(): void {
     this.hudRoot.innerHTML = `
-      <div class="hud-top">
-        <div class="hud-box">
-          <div class="hud-mission-title" id="hud-night-lbl">NOITE 01</div>
-          <div class="hud-mission-val" id="hud-task-lbl">Protocolo: 0/4</div>
-          <div class="hud-energy-line">
-            <span id="hud-bat-lbl">📱 100%</span>
-            <span id="hud-pb-lbl">🔌 100%</span>
+      <div class="hud-topbar">
+        <div class="hud-telemetry">
+          <div class="hud-tel-row" id="hud-task-lbl">PROTOCOLO [0/4]</div>
+          <div class="hud-tel-row">
+            ${ICONS.battery}
+            <span>CEL</span>
+            <span id="hud-bat-segs"></span>
+            <span id="hud-bat-lbl">100%</span>
+          </div>
+          <div class="hud-tel-row">
+            ${ICONS.bolt}
+            <span>CARGA</span>
+            <span id="hud-pb-segs"></span>
+            <span id="hud-pb-lbl">100%</span>
           </div>
         </div>
 
-        <div class="hud-box hud-clock-box">
-          <div>
-            <div class="hud-clock-time" id="hud-clock">00:00 AM</div>
-            <div class="hud-clock-sub" id="hud-clock-sub">Prazo do Diário: 06:00</div>
+        <div class="hud-right-cluster">
+          <div class="fnaf-clock">
+            <div class="fnaf-clock-time" id="hud-clock">12:00 AM</div>
+            <div class="fnaf-clock-night" id="hud-night-lbl">NOITE 01 · LIMITE 06:00</div>
           </div>
-          <button class="hud-icon-btn" id="hud-mute-btn" title="Mutar / Ativar Som (M)">🔊</button>
-          <button class="hud-icon-btn" id="hud-pause-btn" title="Pausar (ESC)">⏸</button>
+          <div class="hud-sys-btns">
+            <button class="hud-sq-btn" id="hud-mute-btn" title="Áudio [M]">${ICONS.soundOn}</button>
+            <button class="hud-sq-btn" id="hud-pause-btn" title="Pausar [ESC]">${ICONS.pause}</button>
+          </div>
         </div>
       </div>
 
-      <div class="hud-center-stack">
-        <div class="danger-meter" id="hud-danger">
-          <span id="hud-danger-txt">⚠️ Presença na sala!</span>
-          <div class="danger-track"><i id="hud-danger-bar"></i></div>
-        </div>
-        <div class="subtitle-box" id="hud-subtitle"></div>
-        <div class="hint-toast" id="hud-hint"></div>
+      <div class="danger-strip" id="hud-danger">
+        <div class="danger-strip-label" id="hud-danger-txt">PRESENÇA DETECTADA</div>
+        <div class="danger-strip-bar"><i id="hud-danger-bar"></i></div>
       </div>
 
-      <div class="hud-bottom">
-        <div class="hud-tools-row">
-          <button class="tool-btn" id="btn-flash">🔦 Lanterna [F]</button>
-          <button class="tool-btn" id="btn-door">🔒 Trava Porta [Espaço] <small id="lbl-door-pwr">100%</small></button>
-          <button class="tool-btn" id="btn-blinds">🪟 Persiana [E]</button>
-        </div>
+      <div class="hud-Feed">
+        <div class="cinema-subtitle" id="hud-subtitle"></div>
+        <div class="tactical-hint" id="hud-hint"></div>
+      </div>
 
-        <div class="hud-nav-row">
-          <button class="nav-btn" id="nav-L">◀ Porta <span class="nav-key">[A]</span></button>
-          <button class="nav-btn active" id="nav-C">▲ Quadro <span class="nav-key">[W]</span></button>
-          <button class="nav-btn" id="nav-P">
-            📱 Celular <span class="nav-key">[S]</span>
-            <i class="nav-alert-dot" id="nav-P-dot"></i>
+      <div class="hud-bottom-rig">
+        <div class="rig-actions">
+          <button class="rig-tool" id="btn-flash">
+            ${ICONS.flashlight}
+            <span>Lanterna</span>
+            <span class="keycap">F</span>
           </button>
-          <button class="nav-btn" id="nav-R">Janela ▶ <span class="nav-key">[D]</span></button>
+          <button class="rig-tool" id="btn-door">
+            ${ICONS.lock}
+            <span>Trava</span>
+            <b id="lbl-door-pwr">100%</b>
+            <span class="keycap">ESPAÇO</span>
+          </button>
+          <button class="rig-tool" id="btn-blinds">
+            ${ICONS.blinds}
+            <span id="lbl-blinds-state">Persiana</span>
+            <span class="keycap">E</span>
+          </button>
+        </div>
+
+        <div class="rig-views">
+          <button class="rig-view-btn" id="nav-L">
+            <span>&lsaquo; Porta</span>
+            <span class="keycap">A</span>
+          </button>
+          <button class="rig-view-btn active" id="nav-C">
+            <span>Quadro</span>
+            <span class="keycap">W</span>
+          </button>
+          <button class="rig-view-btn" id="nav-P">
+            ${ICONS.phone}
+            <span>Celular</span>
+            <span class="keycap">S</span>
+            <i class="ping-dot" id="nav-P-dot"></i>
+          </button>
+          <button class="rig-view-btn" id="nav-R">
+            <span>Janela &rsaquo;</span>
+            <span class="keycap">D</span>
+          </button>
         </div>
       </div>
     `;
@@ -792,38 +854,50 @@ export class UIManager {
   updateHUD(snap: GameSnapshot): void {
     const q = (sel: string) => this.hudRoot.querySelector(sel) as HTMLElement | null;
 
+    const clk = q('#hud-clock');
+    if (clk) {
+      // Converte "00:xx AM" para "12:xx AM" no estilo clássico de relógio da meia-noite
+      const displayClock = snap.clockText.startsWith('00:')
+        ? '12:' + snap.clockText.slice(3)
+        : snap.clockText;
+      clk.textContent = displayClock;
+    }
+
     const nightLbl = q('#hud-night-lbl');
-    if (nightLbl) nightLbl.textContent = snap.nightConfig.dayLabel;
+    if (nightLbl) {
+      nightLbl.textContent =
+        snap.nightConfig.mode === 'survive6am'
+          ? `${snap.nightConfig.dayLabel} · ATÉ 06:00`
+          : `${snap.nightConfig.dayLabel} · PRAZO 06:00`;
+    }
 
     const taskLbl = q('#hud-task-lbl');
     if (taskLbl) {
       taskLbl.textContent =
         snap.nightConfig.mode === 'survive6am'
-          ? 'Meta: Sobreviver até 06:00'
-          : `Protocolo: ${snap.taskIndex}/${snap.totalTasks}`;
+          ? 'META // SOBREVIVER ATÉ 06:00'
+          : `PROTOCOLO // ETAPA ${snap.taskIndex}/${snap.totalTasks}`;
     }
 
+    const batPct = Math.ceil(snap.phoneBattery);
+    const pbPct = Math.ceil(snap.powerbankReserve);
+
+    const batSegs = q('#hud-bat-segs');
+    if (batSegs) batSegs.innerHTML = this.renderSegBar(batPct, 5);
     const batLbl = q('#hud-bat-lbl');
-    if (batLbl) batLbl.textContent = `📱 ${Math.ceil(snap.phoneBattery)}%`;
+    if (batLbl) batLbl.textContent = `${batPct}%`;
 
+    const pbSegs = q('#hud-pb-segs');
+    if (pbSegs) pbSegs.innerHTML = this.renderSegBar(pbPct, 4);
     const pbLbl = q('#hud-pb-lbl');
-    if (pbLbl) pbLbl.textContent = `🔌 ${Math.ceil(snap.powerbankReserve)}%`;
-
-    const clk = q('#hud-clock');
-    if (clk) clk.textContent = snap.clockText;
-
-    const clkSub = q('#hud-clock-sub');
-    if (clkSub) {
-      clkSub.textContent =
-        snap.nightConfig.mode === 'survive6am'
-          ? 'Amanhecer às 06:00'
-          : 'Fechamento: 06:00 AM';
-    }
+    if (pbLbl) pbLbl.textContent = `${pbPct}%`;
 
     const muteBtn = q('#hud-mute-btn');
-    if (muteBtn) muteBtn.textContent = this.storage.getSettings().muted ? '🔇' : '🔊';
+    if (muteBtn) {
+      muteBtn.innerHTML = this.storage.getSettings().muted ? ICONS.soundOff : ICONS.soundOn;
+    }
 
-    // Barra de perigo e vinheta de abafamento/tensão
+    // Linha superior sutil de perigo / abafamento
     const dngBox = q('#hud-danger');
     const dngBar = q('#hud-danger-bar');
     const dngTxt = q('#hud-danger-txt');
@@ -831,11 +905,11 @@ export class UIManager {
       if (snap.dangerLevel > 0.02) {
         dngBox.style.display = 'block';
         dngBar.style.width = `${Math.min(100, snap.dangerLevel * 100)}%`;
-        dngTxt.textContent = `⚠️ PERIGO: ${snap.dangerTeacherName} na brecha!`;
+        dngTxt.textContent = `AMEAÇA NA SALA // ${snap.dangerTeacherName}`;
       } else if (snap.roomStress > 65) {
         dngBox.style.display = 'block';
         dngBar.style.width = `${snap.roomStress}%`;
-        dngTxt.textContent = `😮‍💨 Sala abafando (${Math.round(snap.roomStress)}%) — abra a persiana logo!`;
+        dngTxt.textContent = `AR RAREFEITO (${Math.round(snap.roomStress)}%) — ABRA A PERSIANA`;
       } else {
         dngBox.style.display = 'none';
       }
@@ -843,21 +917,19 @@ export class UIManager {
 
     const redGlow = Math.max(snap.dangerLevel * 0.55, snap.roomStress > 70 ? 0.25 : 0);
     this.vignetteEl.style.boxShadow =
-      redGlow > 0.05 ? `inset 0 0 110px rgba(220, 20, 40, ${redGlow})` : 'none';
+      redGlow > 0.05 ? `inset 0 0 120px rgba(185, 18, 28, ${redGlow})` : 'none';
 
-    // Legenda de falas dos professores
+    // Legenda estilo cinema
     const subEl = q('#hud-subtitle');
     if (subEl) {
       if (snap.activeSubtitle) {
         subEl.style.display = 'block';
-        subEl.style.borderLeftColor = snap.activeSubtitle.color;
-        subEl.innerHTML = `<b style="color:${snap.activeSubtitle.color}">${snap.activeSubtitle.speaker}</b>${snap.activeSubtitle.text}`;
+        subEl.innerHTML = `<span style="color:${snap.activeSubtitle.color}">${snap.activeSubtitle.speaker}:</span>"${snap.activeSubtitle.text}"`;
       } else {
         subEl.style.display = 'none';
       }
     }
 
-    // Dicas contextuais rápidas
     const hintEl = q('#hud-hint');
     if (hintEl) {
       if (snap.statusHint) {
@@ -868,7 +940,6 @@ export class UIManager {
       }
     }
 
-    // Botões de navegação e ferramentas
     (['L', 'C', 'P', 'R'] as ViewDirection[]).forEach((dir) => {
       q(`#nav-${dir}`)?.classList.toggle('active', snap.view === dir);
     });
@@ -879,25 +950,22 @@ export class UIManager {
         snap.bellAlert || snap.valdirPopup || snap.unreadMessages > 0 ? 'block' : 'none';
     }
 
-    q('#btn-flash')?.classList.toggle('active', snap.flashlightOn && snap.view !== 'P');
-    q('#btn-door')?.classList.toggle('locked-on', snap.doorClosed);
+    q('#btn-flash')?.classList.toggle('lit', snap.flashlightOn && snap.view !== 'P');
+    q('#btn-door')?.classList.toggle('engaged', snap.doorClosed);
     const pwrEl = q('#lbl-door-pwr');
     if (pwrEl) {
       pwrEl.textContent =
         snap.doorLockCooldown > 0
-          ? `(${Math.ceil(snap.doorLockCooldown)}s)`
+          ? `AGUARDE ${Math.ceil(snap.doorLockCooldown)}S`
           : `${Math.round(snap.doorHoldEnergy)}%`;
     }
 
-    const blindsBtn = q('#btn-blinds');
-    if (blindsBtn) {
-      blindsBtn.classList.toggle('locked-on', snap.blindsClosed);
-      blindsBtn.textContent = snap.blindsClosed
-        ? '🪟 Persiana: Fechada [E]'
-        : '🪟 Persiana: Aberta [E]';
+    q('#btn-blinds')?.classList.toggle('engaged', snap.blindsClosed);
+    const blindsTxt = q('#lbl-blinds-state');
+    if (blindsTxt) {
+      blindsTxt.textContent = snap.blindsClosed ? 'Persiana [Fechada]' : 'Persiana';
     }
 
-    // Mostra/oculta o smartphone
     const showPhone = snap.view === 'P';
     if ((this.phoneEl.style.display === 'flex') !== showPhone) {
       this.phoneEl.style.display = showPhone ? 'flex' : 'none';
